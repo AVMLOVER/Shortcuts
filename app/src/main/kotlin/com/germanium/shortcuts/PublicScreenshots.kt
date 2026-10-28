@@ -23,7 +23,8 @@ internal object PublicScreenshots {
         if (Build.VERSION.SDK_INT >= 29) {
             values.put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Screenshots/")
             values.put(MediaStore.Images.Media.IS_PENDING, 1)
-            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: throw Problem("err_io")
+            val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val uri = resolver.insert(collection, values) ?: throw Problem("err_io")
             try {
                 resolver.openOutputStream(uri, "w")?.use { it.write(png) } ?: throw Problem("err_io")
                 currentCoroutineContext().ensureActive()
