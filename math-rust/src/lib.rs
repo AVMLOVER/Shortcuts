@@ -4,6 +4,7 @@ use num_integer::Integer;
 use num_traits::{Zero, One, ToPrimitive, Signed};
 use std::{str::FromStr, num::NonZeroU64};
 type R = Result<D, &'static str>;
+mod factors;
 
 fn bound(n: D) -> R {
     let (_, scale) = n.as_bigint_and_exponent();
@@ -122,8 +123,73 @@ pub extern "system" fn Java_com_germanium_shortcuts_NativeMath_evaluateNative(mu
     env.new_string(output).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut())
 }
 
+pub fn statistics(source: &str, operation: &str) -> Result<Vec<D>, &'static str> {
+    if source.is_empty() || source.len() > 262144 { return Err("size"); }
+    let mut numbers = Vec::new();
+    for line in source.lines() {
+        if numbers.len() >= 256 || line.len() > 2050 { return Err("size"); }
+        numbers.push(bound(D::from_str(line).map_err(|_| "number")?)?);
+    }
+    if numbers.is_empty() { return Err("size"); }
+    numbers.sort();
+    let count = D::from(numbers.len() as u32);
+    let sum = numbers.iter().try_fold(D::zero(), |a,b| bound(a + b))?;
+    let mean = bound(&sum / &count)?;
+    if operation == "mode" {
+        let mut groups: Vec<(D,usize)> = Vec::new();
+        for number in numbers { match groups.last_mut() { Some((last, n)) if *last == number => *n += 1, _ => groups.push((number, 1)) } }
+        let frequency = groups.iter().map(|(_,n)| *n).max().unwrap();
+        return Ok(groups.into_iter().filter(|(_,n)| *n == frequency).map(|(n,_)| n).collect());
+    }
+    let result = match operation {
+        "count" => count, "sum" => sum, "average" => mean,
+        "minimum" => numbers.first().unwrap().clone(), "maximum" => numbers.last().unwrap().clone(),
+        "range" => bound(numbers.last().unwrap() - numbers.first().unwrap())?,
+        "median" => if numbers.len() % 2 == 1 { numbers[numbers.len()/2].clone() } else { bound((&numbers[numbers.len()/2-1] + &numbers[numbers.len()/2]) / D::from(2))? },
+        "variance" | "stddev" => {
+            let variance = bound(numbers.iter().try_fold(D::zero(), |a,b| { let delta = bound(b - &mean)?; bound(a + bound(&delta * &delta)?) })? / count)?;
+            if operation == "stddev" { bound(variance.sqrt().ok_or("domain")?)? } else { variance }
+        }
+        _ => return Err("operation"),
+    };
+    Ok(vec![bound(result)?])
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_germanium_shortcuts_NativeMath_statisticsNative(mut env: jni::JNIEnv, _class: jni::objects::JClass, operation: jni::objects::JString, source: jni::objects::JString) -> jni::sys::jstring {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let input: String = env.get_string(&source).map_err(|_| "jni")?.into();
+        let operation: String = env.get_string(&operation).map_err(|_| "jni")?.into();
+        statistics(&input, &operation).map(|items| items.into_iter().map(|n| n.normalized().to_string()).collect::<Vec<_>>().join("\n"))
+    }));
+    let output = match result { Ok(Ok(value)) => value, _ => "!statistics".into() };
+    env.new_string(output).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut())
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_germanium_shortcuts_NativeMath_factorsNative(mut env: jni::JNIEnv, _class: jni::objects::JClass, source: jni::objects::JString, operation: jni::objects::JString, powers: jni::sys::jboolean) -> jni::sys::jstring {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let input: String = env.get_string(&source).map_err(|_| "jni")?.into();
+        let operation: String = env.get_string(&operation).map_err(|_| "jni")?.into();
+        factors::output(&input, &operation, powers != 0)
+    }));
+    let output = match result { Ok(Ok(value)) => value, Ok(Err("size")) => "!size".into(), _ => "!factor".into() };
+    env.new_string(output).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut())
+}
+
 #[cfg(test)] mod tests {
     use super::*;
+    #[test] fn statistics_decimal_and_population() {
+        for (operation, expected) in [("sum","40"),("average","5"),("median","4.5"),("variance","4"),("stddev","2"),("range","7"),("count","8")] {
+            assert_eq!(statistics("2\n4\n4\n4\n5\n5\n7\n9", operation).unwrap(), vec![D::from_str(expected).unwrap()]);
+        }
+        assert_eq!(statistics("0.1\n0.2", "sum").unwrap(), vec![D::from_str("0.3").unwrap()]);
+    }
+    #[test] fn statistics_modes_and_limits() {
+        assert_eq!(statistics("1\n1.0\n2\n2.00", "mode").unwrap(), vec![D::from(1),D::from(2)]);
+        for (input, operation) in [("","average"),("word","sum"),("1e999999","sum"),("1","unknown")] { assert!(statistics(input, operation).is_err()); }
+        assert!(statistics(&"1\n".repeat(257), "sum").is_err());
+    }
     #[test] fn decimal_and_precedence() { for (s,out) in [("0.1+0.2","0.3"),("-2^2","-4"),("2^3^2","512"),("2^-2","0.25"),("round(-2.5)","-3"),("7%3","1")] { assert_eq!(evaluate(s).unwrap(),D::from_str(out).unwrap(),"{s}"); } }
     #[test] fn integer_functions() { for (s,n) in [("gcd(84,30)",6),("lcm(12,18)",36),("mod(-7,3)",2),("lcm(0,7)",0)] { assert_eq!(evaluate(s).unwrap(),D::from(n)); } }
     #[test] fn trig() { for (s,out) in [("sin(0)",0.0),("cos(0)",1.0),("tan(0)",0.0),("asin(0)",0.0),("acos(1)",0.0),("atan(0)",0.0)] { assert_eq!(evaluate(s).unwrap().to_f64().unwrap(),out); } }

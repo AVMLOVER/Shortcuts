@@ -46,6 +46,7 @@ class VariableScope {
     private val outputLengths = mutableMapOf<String, Int>()
     private var outputLength = 0L
     fun output(id: String): Value = outputs[id] ?: throw Problem("err_variable_missing")
+    fun outputProperty(id: String, key: String): Value? = outputs["$id.$key"]
     fun record(id: String, value: Value) {
         val length = value.text().length
         require(outputLength - (outputLengths[id] ?: 0) + length <= 8388608) { throw Problem("err_size") }
@@ -70,13 +71,15 @@ class VariableScope {
     fun snapshot(): Map<String, Value> = values.toMap()
     fun remove(name: String) { values.remove(name); totalLength -= lengths.remove(name) ?: 0 }
 }
-data class RunContext(val mode: ExecutionMode, val value: Value, val variables: VariableScope, val angleUnit: AngleUnit = AngleUnit.DEGREES) {
+data class RunContext(val mode: ExecutionMode, val value: Value, val variables: VariableScope, val angleUnit: AngleUnit = AngleUnit.DEGREES, val shortcutInput: Value = value) {
     val input: String get() = value.text()
     fun reference(name: String): Value = when {
         name == "input" -> value
         name.startsWith("@") -> {
             val path = name.drop(1).split('.')
-            path.drop(1).fold(variables.output(path.first())) { current, key -> (current as? Value.Dictionary)?.entries?.get(key) ?: throw Problem("err_variable_missing") }
+            var current = variables.output(path.first())
+            path.drop(1).forEachIndexed { index, key -> current = (if (index == 0) variables.outputProperty(path.first(), key) else null) ?: (current as? Value.Dictionary)?.entries?.get(key) ?: throw Problem("err_variable_missing") }
+            current
         }
         else -> variables.get(name)
     }

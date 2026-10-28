@@ -27,6 +27,12 @@ class WorkspaceFiles(private val root: File) {
         atomicWrite(target, bytes)
         root.canonicalFile.toPath().relativize(target.canonicalFile.toPath()).toString().replace('\\', '/')
     } }
+    suspend fun importBinary(folder: String, name: String, bytes: ByteArray): String = withContext(Dispatchers.IO) { mutex.withLock {
+        require(name.isNotBlank() && '/' !in name && '\\' !in name && bytes.size <= 32 * 1024 * 1024) { throw Problem("err_path") }
+        val target = resolve(folder, name); require(target != root.canonicalFile) { throw Problem("err_path") }
+        atomicWrite(target, bytes)
+        root.canonicalFile.toPath().relativize(target.canonicalFile.toPath()).toString().replace('\\', '/')
+    } }
     fun imageFile(path: String): File? = runCatching { resolve("", path).takeIf { it.isFile && it.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp") && it.length() <= 32 * 1024 * 1024 } }.getOrNull()
     fun readableFile(path: String): File = resolve("", path).also { require(it.isFile && it.length() <= 32 * 1024 * 1024) { throw Problem("err_size") } }
     suspend fun perform(operation: String, folder: String, name: String, content: String): Value = withContext(Dispatchers.IO) { mutex.withLock {

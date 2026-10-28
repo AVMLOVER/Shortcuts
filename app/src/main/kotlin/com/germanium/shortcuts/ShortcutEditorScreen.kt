@@ -95,17 +95,18 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val haptics = LocalHapticFeedback.current
-    val availableIds = remember(editor.layoutVersion, focused?.first) { TreeEdits.availableBefore(editor.steps, focused?.first.orEmpty()).map { it.id }.toSet() }
+    val atRepeatEnd = byId[focused?.first]?.type == "repeat_until" && focused?.second in listOf("left", "right")
+    val availableIds = remember(editor.layoutVersion, focused?.first, atRepeatEnd) { (if (atRepeatEnd) TreeEdits.availableAtRepeatEnd(editor.steps, focused?.first.orEmpty()) else TreeEdits.availableBefore(editor.steps, focused?.first.orEmpty())).map { it.id }.toSet() }
     val available = availableIds.mapNotNull(byId::get)
-    val loopNames = remember(editor.layoutVersion, focused?.first) { TreeEdits.pathTo(editor.steps, focused?.first.orEmpty()).orEmpty().dropLast(1).flatMap { when (it.type) { "repeat_each" -> listOf("repeat_item", "repeat_index"); "repeat" -> listOf("repeat_index"); else -> emptyList() } }.distinct() }
+    val loopNames = remember(editor.layoutVersion, focused?.first, atRepeatEnd) { TreeEdits.pathTo(editor.steps, focused?.first.orEmpty()).orEmpty().let { if (atRepeatEnd) it else it.dropLast(1) }.flatMap { when (it.type) { "repeat_each" -> listOf("repeat_item", "repeat_index"); "repeat", "repeat_until" -> listOf("repeat_index"); else -> emptyList() } }.distinct() }
     val configuration = LocalConfiguration.current
     val dragTitles = remember(editor.layoutVersion, configuration) { rows.filterIsInstance<EditorRow.Action>().associate { row -> row.step.id to DragItem(row.step.id, row.scope, "${(indices[row.step.id] ?: 0) + 1}. " + (ActionCatalog.forStep(row.step)?.let { context.tr(it.title) } ?: row.step.type)) } }
     val referenceNames = remember(editor.layoutVersion, editor.referenceVersion, configuration) { buildMap {
         put("input", context.tr("previous_result"))
         flatSteps.forEachIndexed { index, step ->
-            val label = step.parameters["resultVariable"]?.takeIf(String::isNotBlank) ?: "${index + 1}. " + (ActionCatalog.forStep(step)?.let { context.tr(it.title) } ?: step.type)
+            val label = step.parameters["resultVariable"]?.takeIf(String::isNotBlank) ?: "${index + 1}. " + (if (step.type == "repeat_until") context.tr("repeat_result") else ActionCatalog.forStep(step)?.let { context.tr(it.title) } ?: step.type)
             put("@${step.id}", label)
-            ActionOutputs.properties(step.type).forEach { property -> put("@${step.id}.$property", "$label · ${context.tr("${if (step.type == "current_location") "location" else "image"}_prop_${property.lowercase(java.util.Locale.ROOT)}")}") }
+            ActionOutputs.properties(step.type).forEach { property -> put("@${step.id}.$property", "$label · ${context.tr(outputPropertyLabel(step.type, property))}") }
         }
     } }
     val observed = remember(state.result) { state.result?.steps.orEmpty().associateBy { it.stepId } }
@@ -188,7 +189,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             if (!draggingActions) {
             if (choosingOutput) TextButton(onClick = ::restoreInput) { Text(t("cancel")) } else {
             IconButton(onClick = { try { transfers.export(editor.shortcut()) } catch (e: Exception) { model.report(e) } }, enabled = !busy) { AppIcon(R.drawable.ic_export, description = t("export")) }
-            TextButton(onClick = { model.saveEditor() }, enabled = !busy && state.storageReady && editor.name.isNotBlank(), modifier = Modifier.testTag("save_shortcut")) { Text(t(if (state.saving) "saving" else "done")) }
+            TextButton(onClick = { model.saveEditor() }, enabled = !busy && state.storageReady && (editor.steps.isEmpty() || editor.name.isNotBlank()), modifier = Modifier.testTag("save_shortcut")) { Text(t(if (state.saving) "saving" else "done")) }
             }
             }
         })
@@ -199,18 +200,21 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             if (inspected != null && !choosingOutput) {
                 val reference = inspected.token.name
                 val source = if (reference.startsWith("@")) byId[reference.drop(1).substringBefore('.')] else if (reference == "input") available.lastOrNull() else available.lastOrNull { it.parameters["resultVariable"] == reference || it.type in listOf("create_variable", "set_variable") && it.parameters["name"] == reference }
-                VariableInspector(referenceNames[reference] ?: reference, source?.let { observed[it.id]?.output }, replace = ::beginChoosing,
+                val inspectedResult = source?.let { observed[it.id] }
+                val inspectedProperty = reference.removePrefix("@").substringAfter('.', "")
+                val inspectedPreview = if (inspectedProperty.isNotEmpty()) (inspectedResult?.properties?.get(inspectedProperty) ?: (inspectedResult?.value as? Value.Dictionary)?.entries?.get(inspectedProperty))?.text() else inspectedResult?.output
+                VariableInspector(referenceNames[reference] ?: reference, inspectedPreview, replace = ::beginChoosing,
                     remove = { variables.removeInspected() }, close = { variables.inspected = null }, reveal = source?.let { step -> { originIndex = listState.firstVisibleItemIndex; originOffset = listState.firstVisibleItemScrollOffset; scope.launch { val index = rows.indexOfFirst { it is EditorRow.Action && it.step.id == step.id }; if (index >= 0) { listState.animateScrollToItem(index + 1); revealedId = step.id } } } })
             }
             if (choosingOutput) Text(t("tap_output_inline"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             if (focused != null && !busy && !choosingOutput && variables.inspected == null) {
-                val names = (listOf("input") + loopNames + available.flatMap { step ->
-                    listOfNotNull(step.parameters["resultVariable"]?.takeIf(String::isNotBlank), if (step.type in listOf("set_variable", "create_variable")) step.parameters["name"] else null) +
+                val names = (listOf("input") + loopNames + available.filter(ActionOutputs::inVariableBar).flatMap { step ->
+                    listOf("@${step.id}") + listOfNotNull(step.parameters["resultVariable"]?.takeIf(String::isNotBlank), if (step.type in listOf("set_variable", "create_variable")) step.parameters["name"] else null) +
                         (if (step.type == "shell") listOf("shell_stdout", "shell_stderr", "shell_exit_code") else emptyList())
                 }).distinct()
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                LazyRow(Modifier.testTag("editor_variable_bar"), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     item { InputChip(false, ::beginChoosing, label = { Text(t("select_output")) }, leadingIcon = { VariableGlyph() }, modifier = Modifier.testTag("select_action_output")) }
-                    items(names, key = { it }) { name -> InputChip(false, { insertReference(name) }, label = { Text(if (name == "input") t("previous_result") else name) }, leadingIcon = { VariableGlyph() }) }
+                    items(names, key = { it }) { name -> InputChip(false, { insertReference(name) }, label = { Text(referenceNames[name] ?: if (name == "input") t("previous_result") else name, maxLines = 1) }, leadingIcon = { VariableGlyph() }, modifier = Modifier.testTag("variable_bar_$name")) }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -254,10 +258,15 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (choosingOutput) {
                                     if (step.id in availableIds) InlineOutputChip(referenceNames["@${step.id}"] ?: step.type, observed[step.id]?.output ?: step.parameters["value"]?.takeUnless { "{{" in it }, step.id) { chooseOutput(step.id) }
                                     if (step.id in availableIds) ActionOutputs.properties(step.type).forEach { property ->
-                                        InlineOutputChip(t("${if (step.type == "current_location") "location" else "image"}_prop_${property.lowercase(java.util.Locale.ROOT)}"), (observed[step.id]?.value as? Value.Dictionary)?.entries?.get(property)?.text(), "${step.id}.$property") { chooseOutput("${step.id}.$property") }
+                                        InlineOutputChip(t(outputPropertyLabel(step.type, property)), (observed[step.id]?.properties?.get(property) ?: (observed[step.id]?.value as? Value.Dictionary)?.entries?.get(property))?.text(), "${step.id}.$property") { chooseOutput("${step.id}.$property") }
                                     }
                                 } else {
                                 definition?.fields?.forEach { field ->
+                                    if (step.type == "factor_number" && field.key == "powers" && (step.parameters["factorType"] ?: "prime_factors") != "prime_factors") return@forEach
+                                    if (step.type == "mask_image" && field.key in listOf("secondary", "maskMode") && (step.parameters["maskShape"] ?: "ellipse") != "custom") return@forEach
+                                    if (step.type == "mask_image" && field.key == "radius" && step.parameters["maskShape"] != "rounded") return@forEach
+                                    if (step.type == "combine_images" && field.key == "columns" && step.parameters["direction"] != "grid") return@forEach
+                                    if (step.type == "join_text" && field.key == "separator" && (step.parameters["separatorType"] ?: "custom") != "custom") return@forEach
                                     if (field.key in listOf("rounding", "digits") && step.type == "calculate" && step.parameters["operation"] != "round") return@forEach
                                     val fieldLabel = if (step.type == "calculate" && field.key == "right" && step.parameters["operation"] == "root") "root_degree" else field.label
                                     if (step.type == "calculate" && field.key == "right" && step.parameters["operation"] in listOf("sin", "cos", "tan", "asin", "acos", "atan", "abs", "sqrt", "cbrt", "round")) return@forEach
@@ -265,6 +274,8 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                         Text(t(fieldLabel), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                                         ExpressiveSwitch(step.parameters[field.key] == "true", { parameter(step, field.key, it.toString()) }, enabled = !busy)
                                     }
+                                    else if (step.type == "comment" && field.key == "note") OutlinedTextField(step.parameters[field.key].orEmpty(), { parameter(step, field.key, it) }, label = { Text(t(fieldLabel)) }, enabled = !busy, modifier = Modifier.fillMaxWidth())
+                                    else if (step.type == "make_pdf" && field.key == "saveDirectoryUri") PdfSaveDirectory(step.parameters[field.key].orEmpty(), !busy, { parameter(step, field.key, it) }, model::report)
                                     else if (field.key == "zone") TimeZoneParameter(step.parameters[field.key].orEmpty(), !busy) { parameter(step, field.key, it) }
                                     else if (field.choices.isNotEmpty()) {
                                         Text(t(fieldLabel), style = MaterialTheme.typography.labelLarge)
@@ -291,6 +302,8 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                         }
                                         if (field.key in listOf("start", "end")) Text(t("date_hint"), style = MaterialTheme.typography.bodySmall)
                                         if (field.key == "pattern") Text(t("regex_hint"), style = MaterialTheme.typography.bodySmall)
+                                        if (step.type == "text_image" && field.key in listOf("foregroundColor", "backgroundColor")) ThemeColorParameter(step.parameters[field.key].orEmpty(), field.key == "foregroundColor", !busy) { parameter(step, field.key, it) }
+                                        if (step.type == "compress_image" && field.key == "quality") (step.parameters[field.key] ?: field.initial).toIntOrNull()?.let { quality -> Slider(quality.toFloat().coerceIn(0f, 100f), { parameter(step, "quality", it.toInt().toString()) }, valueRange = 0f..100f, enabled = !busy, modifier = Modifier.testTag("compression_quality_${step.id}")) }
                                     }
                                 }
                                 if (step.type in listOf("dictionary", "intent", "get_url", "get_html")) TypedEntriesEditor(step, step.type == "intent", !busy, model::update, variables, referenceNames) { key -> focused = key?.let { step.id to it } }
@@ -307,11 +320,26 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 }
                                 if (step.type == "screenshot") Text(t("capture_detail"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "generate_uuid") Text(t("seed_hint"), style = MaterialTheme.typography.bodySmall)
-                                if (step.type == "encode_base64" && step.parameters["inputType"] in listOf("image", "file")) FilledTonalButton(onClick = { scope.launch {
+                                if (step.type == "wait_return") Text(t("wait_return_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "share_input") Text(t("share_input_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type in listOf("mask_image", "overlay_image", "flip_image", "combine_images", "resize_image", "compress_image", "text_image")) Text(t("image_transform_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "factor_number") Text(t("factor_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "resize_image") Text(t("resize_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "compress_image") Text(t("compression_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "make_pdf") Text(t("make_pdf_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "overlay_image" || step.type == "mask_image" && step.parameters["maskShape"] == "custom") FilledTonalButton(onClick = { scope.launch {
+                                    try { val uri = (context.applicationContext as ShortcutsApplication).interactions.ask(Interaction.PickFile(true)); if (uri != null) parameter(step, "secondary", uri) }
+                                    catch (e: Exception) { if (e is CancellationException) throw e; model.report(e) }
+                                } }, enabled = !busy) { Text(t("choose_image")) }
+                                if (step.type in listOf("encode_base64", "hash_text") && step.parameters["inputType"] in listOf("image", "file")) FilledTonalButton(onClick = { scope.launch {
                                     try { val uri = (context.applicationContext as ShortcutsApplication).interactions.ask(Interaction.PickFile(step.parameters["inputType"] == "image")); if (uri != null) parameter(step, "source", uri) }
                                     catch (e: Exception) { if (e is CancellationException) throw e; model.report(e) }
                                 } }, enabled = !busy) { Text(t("action_choose_file")) }
                                 if (step.type == "shell" && state.currentStepId == step.id && state.runningId != null) LiveShell(state.shellStdout, state.shellStderr)
+                                if (ActionOutputs.produces(step.type)) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(t("add_to_variable_bar"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                                    ExpressiveSwitch(ActionOutputs.inVariableBar(step), { parameter(step, "inVariableBar", it.toString()) }, enabled = !busy, modifier = Modifier.testTag("variable_bar_toggle_${step.id}"))
+                                }
                                 if (ActionOutputs.produces(step.type) && step.type !in listOf("create_variable", "append_variable", "get_variable")) OutlinedTextField(step.parameters["resultVariable"].orEmpty(), { parameter(step, "resultVariable", it) }, label = { Text(t("save_result")) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) focused = null })
                                 if (ActionOutputs.produces(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < 1000) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
                                 if (step.type == "if" && step.branches.none { it.id == "else" }) OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch("else"))) }, enabled = !busy) { Text(t("add_else")) }
@@ -340,7 +368,10 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                         OutlinedButton(onClick = { openLibrary(row.owner.id, row.branch.id) }, enabled = !busy && !choosingOutput && row.depth < 16, modifier = indent.fillMaxWidth().onGloballyPositioned { libraryFooters[row.key] = DragScope(row.owner.id, row.branch.id) to Rect(it.positionInRoot() - drag.origin, it.size.toSize()) }) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_action")) }
                     }
                     is EditorRow.End -> Surface(modifier = indent.fillMaxWidth().testTag("end_${row.step.id}"), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                        Text(t(when (row.step.type) { "if" -> "end_if"; "menu" -> "end_menu"; else -> "end_repeat" }), Modifier.padding(16.dp), style = MaterialTheme.typography.titleSmall)
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(t(when (row.step.type) { "if" -> "end_if"; "menu" -> "end_menu"; else -> "end_repeat" }), style = MaterialTheme.typography.titleSmall)
+                            if (row.step.type == "repeat_until" && !choosingOutput) RepeatEndCondition(byId[row.step.id] ?: row.step, !busy, variables, referenceNames, { key -> focused = row.step.id to key }) { key, value -> parameter(byId[row.step.id] ?: row.step, key, value) }
+                        }
                     }
                 }
                 DragInsertionGap(gapAfter, indent.onGloballyPositioned { if (gapAfter) drag.gapBounds = Rect(it.positionInRoot() - drag.origin, it.size.toSize()) })

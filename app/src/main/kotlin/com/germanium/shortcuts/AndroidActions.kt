@@ -17,6 +17,20 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
     private val system = AndroidSystemActions(this.context, interactions, foregroundActivity, shizuku)
     private val images = AndroidImages(this.context as ShortcutsApplication)
     override suspend fun readBinary(source: String) = images.bytes(source)
+    override suspend fun convertInput(kind: String, value: Value) = AndroidContent(context as ShortcutsApplication).extract(kind, value)
+    override suspend fun transformImage(operation: String, source: Value, options: Map<String, String>) = if (operation in listOf("text_image", "make_pdf")) AndroidImageDocuments(context as ShortcutsApplication).perform(operation, source, options) else AndroidImageTransforms(context as ShortcutsApplication).perform(operation, source, options)
+    override suspend fun share(value: Value) { interactions.ask(Interaction.Launch(AndroidContent(context as ShortcutsApplication).shareIntent(value))) }
+    override suspend fun waitForReturn() {
+        val app = context as ShortcutsApplication
+        if (!app.externalReturn.await() && foregroundActivity() == null) interactions.ask(Interaction.Foreground())
+    }
+    override suspend fun batteryLevel(): Int {
+        val battery = context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: throw Problem("err_backend")
+        val level = battery.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+        val scale = battery.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1)
+        require(level >= 0 && scale > 0) { throw Problem("err_backend") }
+        return (level.toLong() * 100 / scale).toInt().coerceIn(0, 100)
+    }
     override suspend fun currentLocation(): Value = AndroidLocation(context, interactions).current()
     override suspend fun chooseFile(imageOnly: Boolean): Value {
         val uri = interactions.ask(Interaction.PickFile(imageOnly)) ?: throw kotlinx.coroutines.CancellationException("File selection cancelled")
@@ -167,8 +181,10 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
                 "boolean" -> putExtra(extra.key, extra.value.toBooleanStrict())
             } }
         }
+        val app = context as ShortcutsApplication
+        val returnToken = app.externalReturn.arm()
         try { activity.startActivity(intent)
-        } catch (e: ActivityNotFoundException) { throw Problem("err_no_handler")
-        } catch (e: SecurityException) { throw Problem("err_permission") }
+        } catch (e: ActivityNotFoundException) { app.externalReturn.cancel(returnToken); throw Problem("err_no_handler")
+        } catch (e: SecurityException) { app.externalReturn.cancel(returnToken); throw Problem("err_permission") }
     }
 }

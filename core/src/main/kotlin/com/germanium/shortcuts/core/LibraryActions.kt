@@ -106,7 +106,11 @@ internal fun libraryActions(platform: PlatformActions): List<ActionHandler> = li
         require(output.length <= 4 * 1024 * 1024) { throw Problem("err_size") }; Value.Text(output)
     },
     Handler("decode_base64") { p, c -> val bytes = Base64.getDecoder().decode(c.resolve(p["source"] ?: "{{input}}").text().filterNot { it in " \t\r\n" }); Value.Text(Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString()) },
-    Handler("hash_text") { p, c -> val algorithm = p.getOrDefault("algorithm", "SHA-256"); require(algorithm in listOf("SHA-256", "SHA-1", "MD5")) { throw Problem("err_invalid_data") }; Value.Text(MessageDigest.getInstance(algorithm).digest(c.text(p, "source", "{{input}}").toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }) },
+    Handler("hash_text") { p, c ->
+        val source = c.text(p, "source", "{{input}}")
+        val bytes = if (p["inputType"] in listOf("file", "image")) platform.readBinary(source) else source.toByteArray(Charsets.UTF_8)
+        Value.Text(ContentHash.digest(bytes, p.getOrDefault("algorithm", "SHA-256")))
+    },
     Handler("encode_url") { p, c -> Value.Text(java.net.URLEncoder.encode(c.text(p, "source", "{{input}}"), "UTF-8")) },
     Handler("decode_url") { p, c -> Value.Text(java.net.URLDecoder.decode(c.text(p, "source", "{{input}}"), "UTF-8")) },
     Handler("get_url") { p, c -> Value.Text(platform.requestUrl(urlWithQuery(c.text(p, "url"), readEntrySpecs(p, "query", "query").map { c.render(it.key) to c.render(it.value) }))) },

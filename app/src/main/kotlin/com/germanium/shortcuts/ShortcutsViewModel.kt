@@ -154,6 +154,16 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     }
     fun saveEditor(close: Boolean = true) {
         val draft = editor.value ?: return
+        if (draft.steps.isEmpty()) {
+            mutate {
+                val id = draft.original.id
+                app.shortcuts.delete(id); app.runs.forget(id); ShortcutTiles.remove(app, id); ShortcutWidgets.updateAll(app)
+                val items = app.shortcuts.list()
+                mutable.update { it.copy(items = items, result = null, resultShortcutId = null, currentStepId = null, error = null, notice = null) }
+                closeEditor()
+            }
+            return
+        }
         try { val shortcut = draft.shortcut(); app.engine.validate(shortcut); save(shortcut) { if (close) closeEditor() else mutableEditor.value = EditorState(shortcut) }
         } catch (e: Exception) { report(e) }
     }
@@ -164,10 +174,11 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         if (app.runs.start(shortcut, state.value.settings.mode, preview) == null) report(Problem("err_busy"))
     }
     fun cancelRun() { app.runs.cancel() }
-    fun save(shortcut: Shortcut, onSaved: () -> Unit = {}) = mutate { app.shortcuts.save(shortcut); val items = app.shortcuts.list(); mutable.update { it.copy(items = items) }; ShortcutWidgets.updateAll(app); onSaved() }
+    fun save(shortcut: Shortcut, onSaved: () -> Unit = {}) = mutate { require(shortcut.steps.isNotEmpty()) { throw Problem("err_empty_shortcut") }; app.shortcuts.save(shortcut); val items = app.shortcuts.list(); mutable.update { it.copy(items = items) }; ShortcutWidgets.updateAll(app); onSaved() }
     fun importShortcuts(shortcuts: List<Shortcut>) = mutate {
         val now = System.currentTimeMillis()
-        val copies = shortcuts.map { it.copy(id = UUID.randomUUID().toString(), updatedAt = maxOf(it.updatedAt, now), folderId = "") }
+        val copies = shortcuts.filter { it.steps.isNotEmpty() }.map { it.copy(id = UUID.randomUUID().toString(), updatedAt = maxOf(it.updatedAt, now), folderId = "") }
+        require(copies.isNotEmpty()) { throw Problem("err_empty_shortcut") }
         app.shortcuts.importNew(copies)
         val items = app.shortcuts.list()
         mutable.update { it.copy(items = items, notice = app.tr("imported")) }
@@ -213,7 +224,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         mutationJob = viewModelScope.launch {
             mutable.update { it.copy(saving = true, error = null) }
             try { block() } catch (e: Exception) { if (e is CancellationException) throw e; report(e) }
-            finally { mutable.update { it.copy(saving = false) } }
+            finally { mutable.update { it.copy(saving = false) }; app.updateSharingTargets() }
         }
     }
 }

@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "shortcuts_math"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "bigdecimal",
  "jni",

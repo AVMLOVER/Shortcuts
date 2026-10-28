@@ -17,7 +17,7 @@ class ActionRegistry(handlers: List<ActionHandler>) {
     fun require(type: String): ActionHandler = requireNotNull(entries[type]) { throw Problem("err_unknown_action") }
 }
 enum class RunStatus { SUCCEEDED, FAILED }
-data class StepResult(val stepId: String, val type: String, val value: Value) { val output get() = value.text() }
+data class StepResult(val stepId: String, val type: String, val value: Value, val properties: Map<String, Value> = emptyMap()) { val output get() = value.text() }
 data class RunResult(
     val status: RunStatus, val steps: List<StepResult>, val error: String? = null,
     val variables: Map<String, Value> = emptyMap(), val failedStepId: String? = null, val failure: Throwable? = null,
@@ -33,7 +33,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
         val handler = when (step.type) {
             "if" -> { require(step.branches.count { it.id == "then" } == 1 && step.branches.all { it.id in listOf("then", "else") }) { throw Problem("err_branches") }; require(step.parameters.getOrDefault("operator", "equals") in CONDITIONS) { throw Problem("err_condition") }; null }
             "menu" -> { require(step.branches.isNotEmpty() && step.branches.all { it.label.isNotBlank() }) { throw Problem("err_menu") }; null }
-            "repeat", "repeat_each" -> { require(step.branches.size == 1 && step.branches.single().id == "body") { throw Problem("err_branches") }; null }
+            "repeat", "repeat_each", "repeat_until" -> { require(step.branches.size == 1 && step.branches.single().id == "body") { throw Problem("err_branches") }; if (step.type == "repeat_until") require(step.parameters.getOrDefault("operator", "equals") in CONDITIONS) { throw Problem("err_condition") }; null }
             "stop" -> { require(step.branches.isEmpty()) { throw Problem("err_branches") }; null }
             else -> { require(step.branches.isEmpty()) { throw Problem("err_branches") }; registry.require(step.type).also { it.validate(step.parameters) } }
         }
@@ -43,21 +43,23 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
     private sealed interface Frame
     private class Block(val nodes: List<Node>, var index: Int = 0, val complete: (() -> Unit)? = null) : Frame
     private class Loop(val node: Node, val count: Int, val items: List<Value>?, val previousIndex: Value?, val previousItem: Value?, var index: Int = 0, val results: MutableList<Value> = mutableListOf(), var resultLength: Long = 0) : Frame
-    suspend fun run(shortcut: Shortcut, mode: ExecutionMode, input: String = "", onStep: (String) -> Unit = {}, onTrace: ((RunTrace) -> Unit)? = null, angleUnit: AngleUnit = AngleUnit.DEGREES): RunResult {
+    suspend fun run(shortcut: Shortcut, mode: ExecutionMode, input: String = "", onStep: (String) -> Unit = {}, onTrace: ((RunTrace) -> Unit)? = null, angleUnit: AngleUnit = AngleUnit.DEGREES, typedInput: Value? = null): RunResult {
         check(mutex.tryLock()) { "err_busy" }
         val results = mutableListOf<StepResult>(); val variables = VariableScope()
         val stack = java.util.ArrayDeque<Frame>()
-        var currentStep: String? = null; var executed = 0; var value: Value = Value.Text(input)
+        val originalInput = typedInput ?: Value.Text(input)
+        var currentStep: String? = null; var executed = 0; var value: Value = originalInput
         var historyLength = 0L; var historyTruncated = false
         fun trace(event: String, step: ActionStep? = null, failure: Throwable? = null) { onTrace?.let { callback -> runCatching { callback(RunTrace(event, step?.id, step?.type, failure)) } } }
-        fun finish(step: ActionStep) {
+        fun finish(step: ActionStep, properties: Map<String, Value> = emptyMap()) {
             currentStep = step.id
             require(value.text().length <= if (step.type in listOf("encode_base64", "decode_base64")) 4 * 1024 * 1024 else 262144) { throw Problem("err_size") }
             if (ActionOutputs.produces(step.type)) {
                 variables.record(step.id, value)
+                properties.forEach { (key, property) -> variables.record("${step.id}.$key", property) }
                 step.parameters["resultVariable"]?.takeIf(String::isNotBlank)?.let { variables.set(it, value) }
             }
-            results += StepResult(step.id, step.type, value); historyLength += value.text().length
+            results += StepResult(step.id, step.type, value, properties); historyLength += value.text().length
             while (results.size > 1 && (historyLength > 2097152 || results.size > 1000)) { historyLength -= results.removeAt(0).output.length; historyTruncated = true }
             trace("step_end", step)
         }
@@ -77,7 +79,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                         val node = frame.nodes[frame.index++]; val step = node.step
                         require(++executed <= 5000) { throw Problem("err_step_limit") }
                         currentStep = step.id; onStep(step.id); trace("step_start", step)
-                        val context = RunContext(mode, value, variables, angleUnit)
+                        val context = RunContext(mode, value, variables, angleUnit, originalInput)
                         when (step.type) {
                             "if" -> {
                                 val selected = if (evaluateCondition(step.parameters, context)) "then" else "else"
@@ -90,9 +92,9 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                                 variables.set("menu_choice", Value.Text(context.render(branch.label))); trace("menu_selected_${branch.id}", step)
                                 stack.addLast(Block(node.branches.getValue(selected), complete = { finish(step) }))
                             }
-                            "repeat", "repeat_each" -> {
+                            "repeat", "repeat_each", "repeat_until" -> {
                                 val items = if (step.type == "repeat_each") asList(context.resolve(step.parameters["source"] ?: "{{input}}")) else null
-                                val count = items?.size ?: (context.text(step.parameters, "count", "2").toIntOrNull() ?: throw Problem("err_repeat"))
+                                val count = if (step.type == "repeat_until") 1000 else items?.size ?: (context.text(step.parameters, "count", "2").toIntOrNull() ?: throw Problem("err_repeat"))
                                 require(count in (if (items == null) 1 else 0)..1000) { throw Problem("err_repeat") }
                                 stack.addLast(Loop(node, count, items, variables.snapshot()["repeat_index"], variables.snapshot()["repeat_item"]))
                             }
@@ -101,6 +103,13 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                         }
                     }
                     is Loop -> {
+                        if (frame.node.step.type == "repeat_until" && frame.index > 0) {
+                            currentStep = frame.node.step.id
+                            if (evaluateCondition(frame.node.step.parameters, RunContext(mode, value, variables, angleUnit, originalInput))) {
+                                restore(frame); stack.removeLast(); finish(frame.node.step, mapOf("repeatCount" to Value.Number(frame.index.toBigDecimal()))); continue
+                            }
+                            require(frame.index < frame.count) { throw Problem("err_repeat_limit") }
+                        }
                         if (frame.index >= frame.count) {
                             restore(frame); stack.removeLast()
                             if (frame.items != null) value = Value.ListValue(frame.results)
@@ -136,7 +145,7 @@ internal class Handler(
     override fun validate(parameters: Map<String, String>) = check(parameters)
     override suspend fun execute(parameters: Map<String, String>, context: RunContext) = run(parameters, context)
 }
-fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = ActionRegistry(extraActions(platform) + libraryActions(platform) + listOf(
+fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = ActionRegistry(contentActions(platform) + extraActions(platform) + libraryActions(platform) + listOf(
     Handler("text", { require(it.containsKey("value")) { throw Problem("err_invalid_data") } }) { p, c -> c.resolve(p.getValue("value")) },
     Handler("append_text", { require(it.containsKey("value")) { throw Problem("err_invalid_data") } }) { p, c -> Value.Text(c.text(p, "target", "{{input}}") + c.text(p, "value")) },
     Handler("delay", { p ->

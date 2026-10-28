@@ -69,6 +69,14 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
     var fileId by rememberSaveable { mutableStateOf<String?>(null) }
     var photoId by rememberSaveable { mutableStateOf<String?>(null) }
     var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var savePdfId by rememberSaveable { mutableStateOf<String?>(null) }
+    val savePdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        val active = app.interactions.current.value?.takeIf { it.id == savePdfId } as? Interaction.SavePdf
+        if (active != null) {
+            if (uri != null) runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+            app.interactions.reply(active, uri?.toString())
+        }
+    }
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val active = app.interactions.current.value?.takeIf { it.id == fileId } as? Interaction.PickFile
         if (active != null) {
@@ -104,7 +112,7 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
     }
     LaunchedEffect(request?.id) {
         val active = request ?: return@LaunchedEffect
-        if (!active.launched && (active is Interaction.Permissions || active is Interaction.Launch || active is Interaction.Foreground || active is Interaction.Capture || active is Interaction.PickFile || active is Interaction.TakePhoto)) {
+        if (!active.launched && (active is Interaction.Permissions || active is Interaction.Launch || active is Interaction.Foreground || active is Interaction.Capture || active is Interaction.PickFile || active is Interaction.TakePhoto || active is Interaction.SavePdf)) {
             lifecycle.withResumed {
                 if (app.interactions.current.value !== active || active.result.isCompleted) return@withResumed
                 active.launched = true
@@ -120,6 +128,7 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
                             captureLauncher.launch(intent)
                         }
                         is Interaction.PickFile -> { fileId = active.id; fileLauncher.launch(arrayOf(if (active.imageOnly) "image/*" else "*/*")) }
+                        is Interaction.SavePdf -> { savePdfId = active.id; savePdfLauncher.launch(active.filename) }
                         is Interaction.TakePhoto -> {
                             photoId = active.id
                             val folder = java.io.File(app.cacheDir, "camera").also { check(it.isDirectory || it.mkdirs()) }
@@ -134,6 +143,7 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
         }
     }
     when (val active = request.takeIf { lifecycleState.isAtLeast(Lifecycle.State.RESUMED) }) {
+        is Interaction.ImageEdit -> ImageEditDialog(app, active)
         is Interaction.ResultDialog -> AlertDialog(onDismissRequest = { if (active.allowCancel) app.interactions.reply(active, null) }, title = { Text(active.title) }, text = { SelectionContainer { Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) { Text(active.body) } } },
             confirmButton = { TextButton(onClick = { app.interactions.reply(active, "ok") }, modifier = Modifier.testTag("confirm_result")) { Text(t("confirm")) } },
             dismissButton = if (active.allowCancel) ({ TextButton(onClick = { app.interactions.reply(active, null) }, modifier = Modifier.testTag("cancel_result")) { Text(t("cancel")) } }) else null)
@@ -195,7 +205,7 @@ object StartupPermissions {
 @Composable fun ResultCard(result: RunResult) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(t(if (result.status == RunStatus.SUCCEEDED) "run_success" else "run_failed"), style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(t(if (result.status == RunStatus.SUCCEEDED) "run_success" else "run_failed"), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium); ShareValueButton(result.steps.lastOrNull()?.value ?: Value.Text("")) }
         SelectionContainer { Text((result.failure?.let(context::describe) ?: result.output.ifEmpty { t("no_output") }).take(8192)) }
         Text(t("actions_count", result.executedCount), style = MaterialTheme.typography.labelMedium)
         if (result.historyTruncated) Text(t("history_limited"), style = MaterialTheme.typography.bodySmall)

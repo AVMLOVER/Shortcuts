@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcut version="1" id="share-number-statistics" createdAt="1793145600000" updatedAt="1793145600000">
+  <name>Shared numbers: average</name>
+  <steps>
+    <action id="shared" type="share_input" enabled="true"><parameter key="contentType">any</parameter></action>
+    <action id="numbers" type="get_numbers_from_input" enabled="true"><parameter key="source">{{input}}</parameter></action>
+    <action id="average" type="statistics" enabled="true"><parameter key="source">{{input}}</parameter><parameter key="statistic">average</parameter></action>
+    <action id="formatted" type="format_number" enabled="true"><parameter key="digits">2</parameter><parameter key="grouping">false</parameter></action>
+    <action id="preview" type="quick_look" enabled="true"><parameter key="value">{{input}}</parameter></action>
+    <action id="share" type="share" enabled="true"><parameter key="source">{{input}}</parameter></action>
+  </steps>
+</shortcut>

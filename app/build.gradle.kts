@@ -19,9 +19,10 @@ android {
         applicationId = "com.germanium.shortcuts"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10001
-        versionName = "1.0.1"
+        versionCode = 10002
+        versionName = "1.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testApplicationId = providers.gradleProperty("shortcuts.testApplicationId").orElse("com.germanium.shortcuts.test").get()
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -66,6 +67,7 @@ tasks.named("preBuild").configure { dependsOn(buildRust) }
 dependencies {
     implementation(project(":core"))
     implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.sharetarget:sharetarget:1.2.0")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

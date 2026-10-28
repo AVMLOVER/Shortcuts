@@ -1,26 +1,26 @@
-# 验证记录 · 1.0.1
+# 验证记录 · 1.0.2
 
-日期：2026-10-28，Asia/Shanghai。versionName=1.0.1，versionCode=10001。
+日期：2026-10-28，Asia/Shanghai。versionName=1.0.2，versionCode=10002。
 
-- 按用户要求未连接手机、未安装 APK、未运行真机或模拟器测试。设备测试源码已编译，主页搜索用例适配固定标题栏；0.7.0 的 45 项设备记录仅作历史参考。
-- :core:test、:app:assembleDebug、:app:assembleRelease、:app:assembleDebugAndroidTest、:app:lintDebug、:app:lintRelease 通过。核心 135 项无失败；Rust 7 项通过。
-- Debug/Release Lint 均为 0 错误；警告分别为 52/52，主要涉及 API/依赖/权限声明提示。
-- 两个 APK 都通过 apksigner 验签和 aapt2 包名/版本核对；Release debuggable=false，Debug=true。Release 沿用原有独立密钥，密钥和密码位于仓库外。
-- 79 个操作、530 个本地化字符串键、7 个资源目录检查通过；全体开关仍使用共享 M3E 组件。
-- 预制颜色移除名称，保留色块、选中标记与序号无障碍说明；XML 颜色标识保持兼容。首页三个按钮使用共享 TooltipBox，导入使用新的向下箭头；设置导入同步更新。
-- 首页移除字典示例入口；标题栏从滚动列表移入 Scaffold.topBar，移除额外的 28dp 顶部留白，仅由系统 safeDrawing 顶部/水平安全区域避让状态栏及屏幕开孔。列表内容从标题栏下方开始。
-- 新包验签后删除旧 APK：Shortcuts-1.0.0-debug.apk, Shortcuts-1.0.0-release.apk。旧源码归档保留。
+- 使用同签名 Release 从设备原 0.7.0 覆盖升级，未卸载主应用或清除数据。升级前备份原 XML/工作文件及偏好，测试后核对原始文件指纹和已有偏好键值；原始 1 个文件保留。测试专用包与主应用使用同一证书。
+- 真机功能检查 30 项通过，升级前后数据检查各 1/1 项通过。覆盖图像像素、蒙版透明度、叠放/拼接、调整尺寸/压缩、文本生成图像/PDF、原生因数/统计、空流程退出、变量栏、条件性重复及次数、运行时图像预览、共享文本输入、已有语言/XML/Shell 回归。旧版 45 项记录不计入本轮。
+- :core:test、:app:assembleDebug、:app:assembleRelease、:app:assembleDebugAndroidTest、:app:lintDebug、:app:lintRelease 通过。核心 162 项无失败；Rust 11 项通过，包含统计、64 位质数/因数与数学回归。
+- Debug/Release Lint 均为 0 错误，警告分别为 66/66。未将 Lint 检查当作真实系统交互验证。
+- 两个 APK 通过 apksigner 验签和 aapt2 包名/版本核对；Release debuggable=false，Debug=true。Release 沿用原有独立发布密钥，密钥与密码位于仓库外。
+- 102 个动作、665 个本地化字符串键、7 个资源目录检查通过；所有开关使用共享 M3E 勾/X 组件。新增示例 XML 结构检查通过。
+- 共享入口按已保存且已启用的分享动作发布，接收阶段保留授权内容副本；输出文件通过只读 FileProvider URI 共享。图像参数操作和预览已接入，PNG 保留透明区域，内存和像素有界。
+- 新包验签后删除旧 APK：Shortcuts-1.0.1-debug.apk, Shortcuts-1.0.1-release.apk。旧源码归档保留。
 
 ## APK 校验
 
-Debug SHA-256：`04307ec39063905f03265dc05b22293e14bb1cd7408ecbb5e33e2bc49e31b4ea`。
+Debug SHA-256：`76f7b37d65c6a7c79f8cbd5627477f6e484951fba4fb0d1365b0164a061d007e`。
 
-Release SHA-256：`eb5f93d661778fc5ebce255e5bbec3bb5b7a89d773747b3673fb9389944f5bc0`。
+Release SHA-256：`fba221613ec04c457109a14b07399132aa9fcdd561d9302b781d39bf4acd76fa`。
 
 Release 证书 SHA-256：`4c4411dcecbd44cfa591f3f7040fd71f26479bfe7d1f6a92b46974d0111f2507`。
 
-ColorOS 标题栏间距、长按提示及配色选择的设备表现由用户手动验证，本轮没有将静态检查或旧版测试视为这些行为已在 1.0.1 真机通过。
+## 验证边界
 
-## 云端构建
+系统分享面板的目标排序与缓存、其他厂商机型、复杂外部应用返回行为和不同文件提供者授权不能由本次单设备检查概括。Android 分享直达区域有数量上限，应用内选择列表展示全部适用流程；输入提取不自动下载网页图像或执行 OCR。图片大尺寸内存边界和 PDF 100 页上限见 CONTENT-1.0.2.md。测试结束恢复了充电保持亮屏设置。
 
-保留已有 GitHub Actions：main 推送、Pull Request 和手动触发构建；未配置发布签名 Secrets 时云端 Release 为 unsigned。本地签名 Release 使用原有密钥，未将密钥上传到仓库。每次运行结果以 [Actions](https://github.com/AVMLOVER/Shortcuts/actions) 为准。
+GitHub Actions 保留 main 推送、PR 和手动触发。云端未配置发布签名 Secrets 时 Release 为 unsigned；本地 Release 已使用原密钥签名。状态见 [Actions](https://github.com/AVMLOVER/Shortcuts/actions)。

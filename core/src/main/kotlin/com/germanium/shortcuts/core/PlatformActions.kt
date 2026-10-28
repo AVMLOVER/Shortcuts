@@ -33,6 +33,11 @@ interface PlatformActions {
     suspend fun image(operation: String, source: String, options: Map<String, String>): Value = throw Problem("err_backend")
     suspend fun readBinary(source: String): ByteArray = throw Problem("err_backend")
     suspend fun currentLocation(): Value = throw Problem("err_backend")
+    suspend fun convertInput(kind: String, value: Value): Value = ContentInput.extract(kind, value)
+    suspend fun transformImage(operation: String, source: Value, options: Map<String, String>): Value = throw Problem("err_backend")
+    suspend fun share(value: Value): Unit = throw Problem("err_backend")
+    suspend fun waitForReturn(): Unit = throw Problem("err_backend")
+    suspend fun batteryLevel(): Int = throw Problem("err_backend")
     suspend fun fileAction(operation: String, folder: String, name: String, content: Value, mode: ExecutionMode, external: Boolean = false): Value {
         require(!external) { throw Problem("err_permission") }
         val result = workspace(when (operation) { "file_info" -> "read_file"; "file_metadata" -> "file_info"; else -> operation }, folder, name, ValueDocument.encode(content))

@@ -78,8 +78,9 @@ internal fun extraActions(platform: PlatformActions): List<ActionHandler> = list
         Value.ListValue(items.map { Value.Text(it) })
     },
     Handler("join_text") { p, c ->
-        val source = asList(c.resolve(p["source"] ?: "{{input}}"))
-        val separator = c.text(p, "separator", ","); val result = StringBuilder()
+        val input = c.resolve(p["source"] ?: "{{input}}")
+        val source = if (input is Value.ListValue) input.items else listOf(input)
+        val separator = when (p["separatorType"]) { "newline" -> "\n"; "space" -> " "; "comma" -> ","; "none" -> ""; "custom", null -> c.text(p, "separator", ","); else -> throw Problem("err_invalid_data") }; val result = StringBuilder()
         source.forEachIndexed { index, item ->
             val text = item.text(); require(result.length.toLong() + text.length + (if (index > 0) separator.length else 0) <= 262144) { throw Problem("err_size") }
             if (index > 0) result.append(separator); result.append(text)

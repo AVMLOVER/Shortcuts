@@ -1,0 +1,43 @@
+Shortcuts 1.0.2 device verification — 2026-10-28 (Asia/Shanghai)
+
+30 feature/regression checks passed on the same release APK delivered with this source.
+1 pre-upgrade backup check and 1 post-test preservation check passed.
+Release APK SHA-256: fba221613ec04c457109a14b07399132aa9fcdd561d9302b781d39bf4acd76fa
+
+User data was not cleared. The main app was upgraded with its original release certificate.
+Original file hashes and preference values were verified, and screen-awake settings restored.
+Only random test IDs and test-created image/PDF/screenshot files were removed.
+Camera coverage is permission denial/cancellation, without taking a physical photo.
+System screenshot and native PDF Save As completed; their generated files were removed.
+
+Passed feature/regression cases:
+- ContentMediaTest.textExtractionReadsSharedFileBytes
+- ContentMediaTest.flipMovesPixelsAcrossTheHorizontalAxis
+- ContentMediaTest.outboundFilesUseReadGrantedContentUris
+- ContentMediaTest.combineLeavesTransparentSpacingBetweenImages
+- ContentMediaTest.overlayKeepsTheBaseAndCentersTheSecondImage
+- ContentMediaTest.ellipseMaskCreatesTransparentCorners
+- Version102DeviceTest.interactiveImageEditingContinuesAfterConfirmation
+- Version102DeviceTest.textImageAndPaginatedPdfHaveTheExpectedFormat
+- Version102DeviceTest.conditionalRepeatHasFooterComparisonsAndSeparateCount
+- Version102DeviceTest.aNewEmptyEditorIsNotSaved
+- Version102DeviceTest.sharedTextIsPassedOnlyToAnEligibleSelectedShortcut
+- Version102DeviceTest.resizeAndCompressionProduceReadableImages
+- Version102DeviceTest.nativeFactorsAndStatisticsRunOnTheDevice
+- Version102DeviceTest.deletingEveryActionThenDoneRemovesOnlyTheTestShortcut
+- Version102DeviceTest.onlyEnabledOutputSuggestionsAppearInTheVariableBar
+- ImageMatrixTest.imageAndTextPdfPagesCanBeSavedToAContentUri
+- ImageMatrixTest.verticalBothFlipsAndAllCompositionLayoutsKeepDuplicates
+- ImageMatrixTest.overlayOpacityRotationAndOffsets
+- ImageMatrixTest.textImageUsesCustomColorsAndOpaqueBackground
+- ImageMatrixTest.everyMaskShapeAndBothCustomChannels
+- ImageMatrixTest.resizeDistortionWebpAndJpegQualityExtremes
+- ImageMatrixTest.sharedImageFlowsThroughInputConversionAndTransform
+- ImageMatrixTest.getInfoCropAndExifOrientation
+- SystemImageEntrypointsTest.imagePickerOpensAndCancelStopsCleanly
+- SystemImageEntrypointsTest.cameraEntryCanBeCancelledWithoutTakingAPhoto
+- SystemImageEntrypointsTest.pdfWithoutDirectoryOpensTheSystemSaveWindow
+- SystemImageEntrypointsTest.screenshotSavesToPublicPicturesAndCanBeRead
+- DeviceRegressionTest.androidIcuTemplatesAndNestedXml
+- DeviceRegressionTest.standardShellAndStdinWorkOnAndroid
+- DeviceRegressionTest.resourceFilesMatchRequestedLanguages

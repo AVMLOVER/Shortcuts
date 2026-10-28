@@ -10,10 +10,10 @@ data class ActionDefinition(val type: String, val group: String, val symbol: Str
         val branches = when (type) {
             "if" -> listOf(ActionBranch("then"), ActionBranch("else"))
             "menu" -> listOf(ActionBranch(label = context.tr("menu_item") + " 1"), ActionBranch(label = context.tr("menu_item") + " 2"))
-            "repeat", "repeat_each" -> listOf(ActionBranch("body"))
+            "repeat", "repeat_each", "repeat_until" -> listOf(ActionBranch("body"))
             else -> emptyList()
         }
-        return ActionStep(type = type, parameters = fields.associate { it.key to when { type == "read_calendar" && it.key == "date" -> java.time.LocalDate.now().toString(); type == "current_date" && it.key == "format" -> defaultCurrentDateTimePattern(context.resources.configuration.locales[0]); else -> it.initial } }, branches = branches)
+        return ActionStep(type = type, parameters = fields.associate { it.key to when { type == "read_calendar" && it.key == "date" -> java.time.LocalDate.now().toString(); type == "current_date" && it.key == "format" -> defaultCurrentDateTimePattern(context.resources.configuration.locales[0]); else -> it.initial } } + if (type == "repeat_until") mapOf("left" to "{{input}}", "operator" to "equals", "right" to "") else emptyMap(), branches = branches)
     }
 }
 object ActionCatalog {
@@ -25,7 +25,7 @@ object ActionCatalog {
     private val dictionary = ActionField("dictionary", "dictionary_source", "{{input}}")
     private val key = ActionField("key", "key", "name")
     private val valueType = ActionField("valueType", "value_type", "auto", choices = valueTypes)
-    val all = listOf(
+    val all = ContentActionCatalog.all + listOf(
         ActionDefinition("text", "basic", "T", listOf(ActionField("value", "text_type", multiline = true))),
         ActionDefinition("number", "math", "123", listOf(ActionField("value", "number_type", "0"))),
         ActionDefinition("current_location", "device", "◎", emptyList()),
@@ -60,7 +60,7 @@ object ActionCatalog {
         ActionDefinition("trim_text", "text", "T−", listOf(source)),
         ActionDefinition("count_text", "text", "#", listOf(source)),
         ActionDefinition("split_text", "text", "T/", listOf(source, ActionField("separator", "separator", ","))),
-        ActionDefinition("join_text", "text", "T&", listOf(source, ActionField("separator", "separator", ","))),
+        ActionDefinition("join_text", "text", "T&", listOf(source, ActionField("separatorType", "separator_type", "newline", choices = listOf("newline", "space", "comma", "none", "custom").map { it to "separator_$it" }), ActionField("separator", "separator", ","))),
         ActionDefinition("if", "control", "?", listOf(ActionField("left", "left", "{{input}}"), ActionField("operator", "operator", "equals", choices = ShortcutEngine.CONDITIONS.map { it to it }), ActionField("right", "right"))),
         ActionDefinition("menu", "control", "☰", listOf(ActionField("title", "title", contextFreeMenuTitle()))),
         ActionDefinition("repeat", "control", "↻", listOf(ActionField("count", "count", "2"))),
@@ -85,7 +85,7 @@ object ActionCatalog {
         ActionDefinition("format_date", "dates", "◷T", listOf(source, ActionField("format", "format", "yyyy-MM-dd HH:mm:ss"), ActionField("zone", "zone"))),
         ActionDefinition("random_number", "math", "⚄", listOf(ActionField("minimum", "minimum", "1"), ActionField("maximum", "maximum", "100"))),
         ActionDefinition("generate_uuid", "basic", "ID", listOf(ActionField("seed", "seed", "{{input}}"))),
-        ActionDefinition("hash_text", "encoding", "#", listOf(source, ActionField("algorithm", "algorithm", "SHA-256", choices = listOf("SHA-256", "SHA-1", "MD5").map { it to it }))),
+        ActionDefinition("hash_text", "encoding", "#", ContentActionCatalog.hashFields),
         ActionDefinition("get_url", "web", "↓", listOf(ActionField("url", "url", "https://"))),
         ActionDefinition("get_html", "web", "</>", listOf(ActionField("url", "url", "https://"))),
         ActionDefinition("view_html", "web", "</>", listOf(ActionField("html", "html_source", "{{input}}", true))),
@@ -102,5 +102,8 @@ object ActionCatalog {
     private fun contextFreeMenuTitle() = ""
     private val byType = all.associateBy { it.type }
     fun find(type: String) = byType[if (type == "set_variable") "create_variable" else type]
-    fun forStep(step: ActionStep): ActionDefinition? = if (step.type == "calculate" && "expression" in step.parameters) byType["calculate_expression"] else find(step.type)
+    fun forStep(step: ActionStep): ActionDefinition? {
+        val definition = if (step.type == "calculate" && "expression" in step.parameters) byType["calculate_expression"] else find(step.type)
+        return if (step.type == "join_text" && "separatorType" !in step.parameters) definition?.copy(fields = definition.fields.map { if (it.key == "separatorType") it.copy(initial = "custom") else it }) else definition
+    }
 }

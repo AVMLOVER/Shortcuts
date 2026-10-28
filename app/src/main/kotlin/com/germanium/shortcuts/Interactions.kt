@@ -22,6 +22,8 @@ sealed class Interaction {
     class Html(val html: String) : Interaction()
     class PickFile(val imageOnly: Boolean) : Interaction()
     class TakePhoto : Interaction()
+    class ImageEdit(val operation: String, val source: com.germanium.shortcuts.core.Value, val options: Map<String, String>) : Interaction()
+    class SavePdf(val filename: String) : Interaction()
     val result = CompletableDeferred<String?>()
 }
 class Interactions {

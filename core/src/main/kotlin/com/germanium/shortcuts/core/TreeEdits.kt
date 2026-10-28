@@ -31,6 +31,10 @@ object TreeEdits {
         }
         return result
     }
+    fun availableAtRepeatEnd(steps: List<ActionStep>, targetId: String): List<ActionStep> {
+        val loop = pathTo(steps, targetId)?.lastOrNull() ?: return emptyList()
+        return availableBefore(steps, targetId) + loop.branches.firstOrNull { it.id == "body" }?.steps.orEmpty().filter { it.enabled && ActionOutputs.produces(it.type) }
+    }
     fun insertAfter(steps: List<ActionStep>, id: String, action: ActionStep): List<ActionStep> = steps.flatMap { step ->
         if (step.id == id) listOf(step, action) else listOf(step.copy(branches = step.branches.map { it.copy(steps = insertAfter(it.steps, id, action)) }))
     }
@@ -66,7 +70,7 @@ object TreeEdits {
             ids[source]?.let { "{{@$it${path.removePrefix(source)}}}" } ?: match.value
         }
         fun copy(source: ActionStep): ActionStep = source.copy(id = ids.getValue(source.id), parameters = source.parameters.mapValues { references(it.value) }, branches = source.branches.map { branch ->
-            branch.copy(id = if (source.type in listOf("if", "repeat", "repeat_each")) branch.id else java.util.UUID.randomUUID().toString(), label = references(branch.label), steps = branch.steps.map(::copy))
+            branch.copy(id = if (source.type in listOf("if", "repeat", "repeat_each", "repeat_until")) branch.id else java.util.UUID.randomUUID().toString(), label = references(branch.label), steps = branch.steps.map(::copy))
         })
         return copy(step)
     }
