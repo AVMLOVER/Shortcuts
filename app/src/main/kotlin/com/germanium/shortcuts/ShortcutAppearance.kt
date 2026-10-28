@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -72,7 +73,8 @@ internal object ShortcutStyles {
                 item { Text(t("icon_colors"), style = MaterialTheme.typography.titleMedium) }
                 ShortcutStyles.colors.keys.chunked(4).forEach { row -> item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { row.forEach { key ->
-                        StyleChoice(key == color, "color_$key", Modifier.weight(1f).testTag("choose_color_$key"), { custom = false; change(icon, key) }) {
+                        val description = t("preset_color", ShortcutStyles.colors.keys.indexOf(key) + 1)
+                        StyleChoice(key == color, null, Modifier.weight(1f).testTag("choose_color_$key").semantics { contentDescription = description }, { custom = false; change(icon, key) }) {
                             Surface(Modifier.size(36.dp), shape = RoundedCornerShape(12.dp), color = themedShortcutColor(key)) {
                                 if (key == color) Icon(painterResource(R.drawable.ic_glyph_check), null, Modifier.padding(8.dp))
                             }
@@ -105,7 +107,7 @@ internal object ShortcutStyles {
     var brightness by rememberSaveable { mutableFloatStateOf(hsv[2]) }
     fun commit() { change("#%06X".format(java.util.Locale.ROOT, android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness)) and 0xFFFFFF)) }
     Column(Modifier.fillMaxWidth().testTag("color_sliders"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(initial.uppercase(java.util.Locale.ROOT), style = MaterialTheme.typography.titleMedium)
+        Text("#%06X".format(java.util.Locale.ROOT, seed.toArgb() and 0xFFFFFF), style = MaterialTheme.typography.titleMedium)
         ColorChannel("color_hue", hue / 360f, (0..6).map { Color.hsv(it * 60f, 1f, 1f) }) { hue = it * 360f; commit() }
         ColorChannel("color_saturation", saturation, listOf(Color.hsv(hue, 0f, brightness), Color.hsv(hue, 1f, brightness))) { saturation = it; commit() }
         ColorChannel("color_brightness", brightness, listOf(Color.Black, Color.hsv(hue, saturation, 1f))) { brightness = it; commit() }
@@ -120,12 +122,12 @@ internal object ShortcutStyles {
     }
 }
 
-@Composable private fun StyleChoice(chosen: Boolean, label: String, modifier: Modifier, click: () -> Unit, graphic: @Composable () -> Unit) {
+@Composable private fun StyleChoice(chosen: Boolean, label: String?, modifier: Modifier, click: () -> Unit, graphic: @Composable () -> Unit) {
     Surface(onClick = click, modifier = modifier.semantics { selected = chosen; role = Role.RadioButton }, shape = RoundedCornerShape(16.dp),
         color = if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
         border = if (chosen) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null) {
         Column(Modifier.padding(vertical = 12.dp, horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            graphic(); Text(t(label), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+            graphic(); if (label != null) Text(t(label), style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
     }
 }

@@ -20,7 +20,7 @@
     <string name="ui_edit">編集</string>
     <string name="ui_delete">削除</string>
     <string name="ui_export">XML を書き出す</string>
-    <string name="ui_import">XML を読み込む</string>
+    <string name="ui_import">読み込み</string>
     <string name="ui_imported">新しいコピーとして読み込みました。</string>
     <string name="ui_exported">ファイルを書き出しました。</string>
     <string name="ui_delete_title">ショートカットを削除しますか？</string>
@@ -528,4 +528,6 @@
     <string name="ui_limited_access">選択した写真のみ</string>
     <string name="ui_drag_to_delete">ここにドラッグして削除</string>
     <string name="ui_drop_to_delete">離して削除</string>
+    <string name="ui_search">検索</string>
+    <string name="ui_preset_color">プリセット配色 %1$d</string>
 </resources>

@@ -101,22 +101,25 @@ class MainActivity : ComponentActivity() {
                 FilledTonalButton(onClick = { addingFolder = true }, modifier = Modifier.fillMaxWidth()) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("new_folder")) }
             }
         }
-    }) { Scaffold(bottomBar = {
+    }) { Scaffold(topBar = {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).padding(horizontal = 16.dp).heightIn(min = 56.dp).testTag("home_top_bar"), verticalAlignment = Alignment.CenterVertically) {
+                if (tab == 0 && searching) ShortcutSearchField(searchText, ::closeSearch, Modifier.weight(1f))
+                else {
+                    if (tab == 0) IconButton(onClick = { scope.launch { drawer.open() } }) { AppIcon(R.drawable.ic_menu, description = t("folders")) }
+                    Text(if (tab == 0) state.folders.find { it.id == selectedFolder }?.name ?: t("app_name") else t(listOf("app_name", "automation", "settings")[tab]), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    if (tab == 0) ToolIcon(R.drawable.ic_search, "search", state.storageReady, modifier = Modifier.testTag("home_search")) { searching = true }
+                    if (tab == 0) ToolIcon(R.drawable.ic_glyph_folder, "new_folder", state.storageReady && !state.saving, modifier = Modifier.testTag("home_new_folder")) { addingFolder = true }
+                    if (tab == 0) ToolIcon(R.drawable.ic_import, "import", state.storageReady && !state.saving, modifier = Modifier.testTag("home_import"), click = transfers.importXml)
+                }
+            }
+        }
+    }, bottomBar = {
         FloatingNavigation(tab) { tab = it }
     }, floatingActionButton = {
         if (tab == 0 && state.storageReady && !state.saving && state.runningId == null) FloatingActionButton(onClick = { openEditor(activity) }, shape = RoundedCornerShape(22.dp), modifier = Modifier.size(64.dp).testTag("create_shortcut")) { AppIcon(R.drawable.ic_add, description = t("new_shortcut")) }
     }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), state = when (tab) { 1 -> automationScroll; 2 -> settingsScroll; else -> shortcutScroll }, contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (tab == 0 && searching) ShortcutSearchField(searchText, ::closeSearch, Modifier.weight(1f))
-                else {
-                if (tab == 0) IconButton(onClick = { scope.launch { drawer.open() } }) { AppIcon(R.drawable.ic_menu, description = t("folders")) }
-                Text(if (tab == 0) state.folders.find { it.id == selectedFolder }?.name ?: t("app_name") else t(listOf("app_name", "automation", "settings")[tab]), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                if (tab == 0) IconButton(onClick = { searching = true }, enabled = state.storageReady, modifier = Modifier.testTag("home_search")) { AppIcon(R.drawable.ic_search, description = t("search_shortcuts")) }
-                if (tab == 0) IconButton(onClick = { addingFolder = true }, enabled = state.storageReady && !state.saving) { AppIcon(R.drawable.ic_glyph_folder, description = t("new_folder")) }
-                if (tab == 0) IconButton(onClick = transfers.importXml, enabled = state.storageReady && !state.saving, modifier = Modifier.testTag("home_import")) { AppIcon(R.drawable.ic_export, description = t("import")) }
-                }
-            } }
+        LazyColumn(Modifier.fillMaxSize().padding(padding), state = when (tab) { 1 -> automationScroll; 2 -> settingsScroll; else -> shortcutScroll }, contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item { Text(t("home_subtitle"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (state.error != null) item { ErrorCard(state.error, if (state.storageReady) model::clearError else model::reload) }
             if (state.notice != null) item { Text(state.notice, color = MaterialTheme.colorScheme.primary) }
@@ -131,7 +134,6 @@ class MainActivity : ComponentActivity() {
                     if (selectedFolder == null) items(state.folders, key = { "folder_${it.id}" }) { folder -> Card(onClick = { selectedFolder = folder.id }) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) { ShortcutBadge(folder.icon, folder.color, 48.dp); Text(folder.name, style = MaterialTheme.typography.titleMedium) }
                     } }
-                    item { AssistChip(onClick = { openEditor(activity, template = "dictionary") }, enabled = state.storageReady && state.runningId == null, label = { Text(t("examples")) }) }
                     if (state.items.isEmpty() && state.storageReady) item { Card(shape = RoundedCornerShape(28.dp)) { Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { Text(t("empty_title"), style = MaterialTheme.typography.titleLarge); Text(t("empty_body")); FilledTonalButton(onClick = { openEditor(activity) }) { Text(t("new_shortcut")) } } } }
                     items(state.items.filter { selectedFolder == null || it.folderId == selectedFolder }, key = { it.id }) { shortcut ->
                         Card(onClick = { openEditor(activity, shortcut.id) }, enabled = !state.saving && state.runningId == null, shape = RoundedCornerShape(28.dp)) {

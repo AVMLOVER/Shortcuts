@@ -8,6 +8,9 @@ import com.germanium.shortcuts.core.InvalidDocument
 
 object Texts {
     val ids: Map<String, Int> = mapOf(
+        "search" to R.string.ui_search,
+        "preset_color" to R.string.ui_preset_color,
+
         "theme_system" to R.string.ui_theme_system,
         "theme_light" to R.string.ui_theme_light,
         "theme_dark" to R.string.ui_theme_dark,

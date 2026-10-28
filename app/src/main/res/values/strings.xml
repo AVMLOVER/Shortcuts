@@ -20,7 +20,7 @@
     <string name="ui_edit">Edit</string>
     <string name="ui_delete">Delete</string>
     <string name="ui_export">Export XML</string>
-    <string name="ui_import">Import XML</string>
+    <string name="ui_import">Import</string>
     <string name="ui_imported">Shortcut imported as a new copy.</string>
     <string name="ui_exported">File exported.</string>
     <string name="ui_delete_title">Delete shortcut?</string>
@@ -528,4 +528,6 @@
     <string name="ui_limited_access">Selected photos only</string>
     <string name="ui_drag_to_delete">Drag here to delete</string>
     <string name="ui_drop_to_delete">Release to delete</string>
+    <string name="ui_search">Search</string>
+    <string name="ui_preset_color">Preset palette %1$d</string>
 </resources>

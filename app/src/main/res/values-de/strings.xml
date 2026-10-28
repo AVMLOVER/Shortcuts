@@ -20,7 +20,7 @@
     <string name="ui_edit">Bearbeiten</string>
     <string name="ui_delete">Löschen</string>
     <string name="ui_export">XML exportieren</string>
-    <string name="ui_import">XML importieren</string>
+    <string name="ui_import">Importieren</string>
     <string name="ui_imported">Kurzbefehl als neue Kopie importiert.</string>
     <string name="ui_exported">Datei exportiert.</string>
     <string name="ui_delete_title">Kurzbefehl löschen?</string>
@@ -528,4 +528,6 @@
     <string name="ui_limited_access">Nur ausgewählte Fotos</string>
     <string name="ui_drag_to_delete">Zum Löschen hierher ziehen</string>
     <string name="ui_drop_to_delete">Zum Löschen loslassen</string>
+    <string name="ui_search">Suchen</string>
+    <string name="ui_preset_color">Voreinstellung %1$d</string>
 </resources>

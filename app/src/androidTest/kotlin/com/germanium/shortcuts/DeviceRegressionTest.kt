@@ -644,7 +644,7 @@ class DeviceRegressionTest {
         try {
             ActivityScenario.launch<MainActivity>(Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use {
                 compose.waitUntil(15000) { compose.onAllNodesWithTag("home_search").fetchSemanticsNodes().isNotEmpty() }
-                compose.onNodeWithTag("home_search").performScrollTo().performClick()
+                compose.onNodeWithTag("home_search").performClick()
                 compose.onNodeWithTag("shortcut_search_input").performTextReplacement("nEeDlE $token")
                 compose.onNodeWithTag("search_result_${wanted.id}").assertExists()
                 compose.onNodeWithTag("search_result_${other.id}").assertDoesNotExist()

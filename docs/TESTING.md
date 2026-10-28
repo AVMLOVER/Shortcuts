@@ -1,8 +1,8 @@
 # 测试说明
 
-1.0.0 本轮按用户要求只做主机测试、编译、Lint、签名和静态检查，没有连接手机、安装 APK 或运行 instrumentation。设备测试源码仅编译，截图用例已改为检查 MediaStore URI 与公共 Screenshots 路径。
+1.0.1 本轮按用户要求只做主机测试、编译、Lint、签名和静态检查，没有连接手机、安装 APK 或运行 instrumentation。设备测试源码仅编译；主页搜索用例已适配固定标题栏，截图用例检查 MediaStore URI 与公共 Screenshots 路径。
 
-0.7.0 的 45 项设备回归原始记录保留在 DEVICE_TESTS-0.7.0.txt，仅供历史参考；不能视为 1.0.0 的设备验证。当前验证见 VERIFICATION.md。
+0.7.0 的 45 项设备回归原始记录保留在 DEVICE_TESTS-0.7.0.txt，仅供历史参考；不能视为 1.0.1 的设备验证。当前验证见 VERIFICATION.md。
 
 ```powershell
 .\gradlew.bat :core:test :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug

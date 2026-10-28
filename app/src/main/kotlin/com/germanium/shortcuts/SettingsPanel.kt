@@ -65,7 +65,7 @@ import com.germanium.shortcuts.core.*
             Text(t("widgets") + "\n" + t("widget_hint"), Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium)
         }
         SettingsGroup("data", "transfer", R.drawable.ic_glyph_folder) {
-            SettingsRow("import", R.drawable.ic_export, detail = t("xml_import_detail"), enabled = enabled, click = transfers.importXml)
+            SettingsRow("import", R.drawable.ic_import, detail = t("xml_import_detail"), enabled = enabled, click = transfers.importXml)
             SettingsRow("export_all", R.drawable.ic_export, detail = t("export_all_detail"), enabled = enabled, click = transfers.exportAll)
             Text(t("workspace"), Modifier.padding(start = 20.dp, top = 16.dp), style = MaterialTheme.typography.titleSmall)
             SelectionContainer { Text(java.io.File(app.getExternalFilesDir(null) ?: app.filesDir, "workspace").absolutePath, Modifier.padding(20.dp), style = MaterialTheme.typography.bodySmall) }

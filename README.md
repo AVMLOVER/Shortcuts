@@ -1,10 +1,12 @@
-# Shortcuts · 1.0.0
+# Shortcuts · 1.0.1
 
 本项目遵循 [GNU GPLv3](LICENSE) 开源许可。Debug 与独立签名 Release 的构建方式见 [发布构建说明](docs/BUILD_RELEASE.md)。
 
 GitHub 自动编译和下载 APK：见 [Actions 使用说明](docs/GITHUB_ACTIONS.md)。
 
-1.0.0：主题选项统一双行，执行模式简化为标准/Shizuku/Root；缩小主页标题；抽屉返回先关闭抽屉。拖动操作时标题栏显示删除区，松开可删除已有操作或取消动作库新操作。截图改存公共 Pictures/Screenshots，通过媒体 URI 继续预览和处理；新增相机/相册权限入口，首次启动引导申请悬浮窗权限。本版按要求未做真机测试。
+1.0.1：预设颜色只显示色块和选中标记；主页搜索、新建文件夹、导入按钮支持长按提示；主页与设置的导入图标统一为向下箭头。移除主页字典示例入口；标题栏独立固定在状态栏下方，移除额外顶部留白，按系统安全区域适配。本版按要求未做真机测试。
+
+1.0.0：主题选项统一双行，执行模式简化为标准/Shizuku/Root；缩小主页标题；抽屉返回先关闭抽屉。拖动操作时标题栏显示删除区，松开可删除已有操作或取消动作库新操作。截图改存公共 Pictures/Screenshots，通过媒体 URI 继续预览和处理；新增相机/相册权限入口，首次启动引导申请悬浮窗权限。
 
 Android 原生快捷指令应用，包名 `com.germanium.shortcuts`。Kotlin、Jetpack Compose、Material 3 Expressive，Android 8.0（API 26）及以上；快捷指令、设置和自动化规则使用 XML。
 
@@ -93,7 +95,7 @@ macOS / Linux 先 `chmod +x gradlew`，再使用 `./gradlew`。APK 位于 `app/b
 
 Material 3 固定为 `1.5.0-beta01` 的 `MaterialExpressiveTheme`，仍是预发布依赖；其他 Compose 依赖由 BOM 固定。源码包不包含构建产物、缓存、`local.properties` 或签名私钥。
 
-验证结果与 APK SHA-256 见 [验证记录](docs/VERIFICATION.md)，数据格式见 [XML 规范](docs/XML_FORMAT.md)。本轮已连接 Android 17 / API 37 真机验证，详细测试数与范围见验证记录。真机测试的安全运行方法见 [测试说明](docs/TESTING.md)。
+验证结果与 APK SHA-256 见 [验证记录](docs/VERIFICATION.md)，数据格式见 [XML 规范](docs/XML_FORMAT.md)。1.0.1 仅做主机测试和构建检查，旧版真机记录不代表本版界面已通过设备验证。真机测试的安全运行方法见 [测试说明](docs/TESTING.md)。
 
 ## 模块
 

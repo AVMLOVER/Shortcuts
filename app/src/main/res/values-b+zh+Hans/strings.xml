@@ -20,7 +20,7 @@
     <string name="ui_edit">编辑</string>
     <string name="ui_delete">删除</string>
     <string name="ui_export">导出 XML</string>
-    <string name="ui_import">导入 XML</string>
+    <string name="ui_import">导入</string>
     <string name="ui_imported">已导入为新的快捷指令。</string>
     <string name="ui_exported">文件已导出。</string>
     <string name="ui_delete_title">删除快捷指令？</string>
@@ -528,4 +528,6 @@
     <string name="ui_limited_access">仅所选照片</string>
     <string name="ui_drag_to_delete">拖到此处删除</string>
     <string name="ui_drop_to_delete">松开以删除</string>
+    <string name="ui_search">搜索</string>
+    <string name="ui_preset_color">预设配色 %1$d</string>
 </resources>

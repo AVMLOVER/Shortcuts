@@ -19,9 +19,9 @@ import com.germanium.shortcuts.core.RunResult
     }) else Text(definition?.symbol ?: "?", style = MaterialTheme.typography.titleLarge)
 }
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable internal fun ToolIcon(icon: Int, label: String, enabled: Boolean = true, danger: Boolean = false, click: () -> Unit) {
+@Composable internal fun ToolIcon(icon: Int, label: String, enabled: Boolean = true, danger: Boolean = false, modifier: Modifier = Modifier, click: () -> Unit) {
     TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(), tooltip = { PlainTooltip { Text(t(label)) } }, state = rememberTooltipState()) {
-        IconButton(onClick = click, enabled = enabled) { Icon(painterResource(icon), t(label), tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = click, enabled = enabled, modifier = modifier) { Icon(painterResource(icon), t(label), tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 @Composable internal fun HomeResult(result: RunResult) {
