@@ -13,7 +13,7 @@ data class HomeState(val loading: Boolean = true, val items: List<Shortcut> = em
     val privilege: PrivilegeStatus = PrivilegeStatus(ExecutionMode.STANDARD, true, "standard_ready"), val runningId: String? = null,
     val result: RunResult? = null, val error: String? = null, val notice: String? = null, val storageReady: Boolean = false,
     val authorizing: Boolean = false, val saving: Boolean = false, val currentStepId: String? = null,
-    val locationEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
+    val locationEnabled: Boolean = false, val cameraEnabled: Boolean = false, val albumStatus: String = "not_allowed", val overlayEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
 data class EditorState(val original: Shortcut, val name: String = original.name, val steps: List<ActionStep> = original.steps, val icon: String = original.icon, val color: String = original.color, val layoutVersion: Int = 0, val referenceVersion: Int = 0) {
     val dirty get() = name != original.name || steps != original.steps || icon != original.icon || color != original.color
     fun shortcut() = original.copy(name = name.trim(), steps = steps, icon = icon, color = color, updatedAt = maxOf(original.updatedAt, System.currentTimeMillis()))
@@ -45,7 +45,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         if (mutationJob?.isActive == true) return
         mutationJob = viewModelScope.launch {
             try { val items = app.shortcuts.list(); val folders = app.folders.list(); val settings = app.settings.load(); mutable.update { it.copy(items = items, folders = folders, settings = settings, storageReady = true,
-                locationEnabled = AndroidLocation.hasPermission(app), notificationsEnabled = androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled(), batteryExempt = app.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName)) }; refreshPrivileges()
+                locationEnabled = AndroidLocation.hasPermission(app), cameraEnabled = MediaPermissions.camera(app), albumStatus = MediaPermissions.albumStatus(app), overlayEnabled = android.provider.Settings.canDrawOverlays(app), notificationsEnabled = androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled(), batteryExempt = app.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName)) }; refreshPrivileges()
             } catch (e: Exception) { if (e is CancellationException) throw e; report(e); mutable.update { it.copy(storageReady = false) }
             } finally { mutable.update { it.copy(loading = false) } }
         }

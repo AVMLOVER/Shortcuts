@@ -151,15 +151,16 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                 android.view.DragEvent.ACTION_DRAG_STARTED -> { val accepted = event.clipDescription?.hasMimeType("application/vnd.germanium.shortcuts.action") == true; if (accepted) { libraryPointer = androidx.compose.ui.geometry.Offset(0f, drag.height / 2); libraryDestination = null; libraryFooterTarget = null; drag.gapBounds = null; libraryDragging = true }; accepted }
                 android.view.DragEvent.ACTION_DRAG_LOCATION -> {
                     libraryPointer = androidx.compose.ui.geometry.Offset(event.x, event.y) - drag.origin
-                    if (drag.gapBounds?.contains(libraryPointer) != true) {
+                    if (drag.overDelete(libraryPointer)) { libraryDestination = null; libraryFooterTarget = null; libraryDropTarget = null }
+                    else if (drag.gapBounds?.contains(libraryPointer) != true) {
                         libraryFooterTarget = libraryFooters.entries.firstOrNull { it.value.second.contains(libraryPointer) }?.key
                         libraryDestination = if (libraryFooterTarget != null) null else drag.handles.entries.minByOrNull { kotlin.math.abs(it.value.center.y - libraryPointer.y) }?.let { DragDestination("library", it.key, libraryPointer.y < it.value.center.y) }
                         libraryDropTarget = libraryDestination?.target
                     }
                     true
                 }
-                android.view.DragEvent.ACTION_DROP -> { if (LibraryDragSession.matches(event.clipData)) { dropAction(token.type, androidx.compose.ui.geometry.Offset(event.x, event.y) - drag.origin); true } else false }
-                android.view.DragEvent.ACTION_DRAG_ENDED -> { libraryDragging = false; libraryDropTarget = null; libraryDestination = null; libraryFooterTarget = null; drag.gapBounds = null; LibraryDragSession.clear(); true }
+                android.view.DragEvent.ACTION_DROP -> { if (LibraryDragSession.matches(event.clipData)) { val point = androidx.compose.ui.geometry.Offset(event.x, event.y) - drag.origin; if (drag.overDelete(point)) library = false else dropAction(token.type, point); true } else false }
+                android.view.DragEvent.ACTION_DRAG_ENDED -> { libraryDragging = false; libraryDropTarget = null; libraryDestination = null; libraryFooterTarget = null; drag.gapBounds = null; drag.deleteBounds = null; LibraryDragSession.clear(); true }
                 else -> true
             }
         }
@@ -171,18 +172,24 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             withFrameNanos { now ->
                 val elapsed = if (previous == 0L) 0f else ((now - previous) / 1_000_000_000f).coerceAtMost(0.05f)
                 previous = now
-                val speed = when { libraryPointer.y < 160f -> -1000f; libraryPointer.y > drag.height - 160f -> 1000f; else -> 0f }
+                val speed = if (drag.overDelete(libraryPointer)) 0f else when { libraryPointer.y < 160f -> -1000f; libraryPointer.y > drag.height - 160f -> 1000f; else -> 0f }
                 speed * elapsed
             }.let { if (it != 0f) listState.scrollBy(it) }
         }
     }
     BackHandler { leave() }
+    val draggingActions = drag.source != null || libraryDragging
     Box(Modifier.fillMaxSize()) {
     Scaffold(modifier = Modifier.fillMaxSize().testTag("shortcut_editor_fullscreen"), topBar = {
-        TopAppBar(title = { Text(t(if (choosingOutput) "select_output" else "edit_shortcut")) }, navigationIcon = { IconButton(onClick = ::leave) { AppIcon(R.drawable.ic_back, description = t("back")) } }, actions = {
+        TopAppBar(title = {
+            if (draggingActions) DragDeleteTarget(drag.overDelete(if (libraryDragging) libraryPointer else drag.pointer), Modifier.onGloballyPositioned { drag.deleteBounds = Rect(it.positionInRoot(), it.size.toSize()) })
+            else Text(t(if (choosingOutput) "select_output" else "edit_shortcut"))
+        }, navigationIcon = { if (!draggingActions) IconButton(onClick = ::leave) { AppIcon(R.drawable.ic_back, description = t("back")) } }, actions = {
+            if (!draggingActions) {
             if (choosingOutput) TextButton(onClick = ::restoreInput) { Text(t("cancel")) } else {
             IconButton(onClick = { try { transfers.export(editor.shortcut()) } catch (e: Exception) { model.report(e) } }, enabled = !busy) { AppIcon(R.drawable.ic_export, description = t("export")) }
             TextButton(onClick = { model.saveEditor() }, enabled = !busy && state.storageReady && editor.name.isNotBlank(), modifier = Modifier.testTag("save_shortcut")) { Text(t(if (state.saving) "saving" else "done")) }
+            }
             }
         })
     }, bottomBar = {
@@ -214,7 +221,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
         } } }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).onGloballyPositioned { drag.origin = it.positionInRoot(); drag.height = it.size.height.toFloat() }
-            .editorDragGestures(drag, !busy && !choosingOutput, started = { keyboard?.hide(); focusManager.clearFocus(); haptics.performHapticFeedback(HapticFeedbackType.LongPress) }, finished = { model.place(it.source, it.target, it.before) })
+            .editorDragGestures(drag, !busy && !choosingOutput, started = { keyboard?.hide(); focusManager.clearFocus(); haptics.performHapticFeedback(HapticFeedbackType.LongPress) }, deleted = { id -> focused = null; variables.inspected = null; model.remove(id) }, finished = { model.place(it.source, it.target, it.before) })
             .testTag("editor_viewport")) {
         LazyColumn(Modifier.fillMaxSize().testTag("editor_actions"), state = listState, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -24,7 +24,7 @@ class Diagnostics(context: Context) {
         }
     }
     fun writeCrash(thread: Thread, throwable: Throwable): File? {
-        val data = "Shortcuts 0.7.0\nSDK=${Build.VERSION.SDK_INT} device=${Build.MANUFACTURER}/${Build.MODEL}\nThread=${thread.name}\nStep=$activeStep\nTime=${stamp()}\n${throwable.stackTraceToString()}"
+        val data = "Shortcuts ${BuildConfig.VERSION_NAME}\nSDK=${Build.VERSION.SDK_INT} device=${Build.MANUFACTURER}/${Build.MODEL}\nThread=${thread.name}\nStep=$activeStep\nTime=${stamp()}\n${throwable.stackTraceToString()}"
         for (parent in listOf(directory, fallback)) {
             val saved = runCatching {
                 parent.mkdirs()

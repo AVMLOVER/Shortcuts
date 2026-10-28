@@ -404,7 +404,7 @@
     <string name="ui_action_screenshot">获取截图</string>
     <string name="ui_capture_channel">截图</string>
     <string name="ui_err_capture">无法获取截图，请重试并允许屏幕捕获。</string>
-    <string name="ui_capture_detail">每次运行均请求系统截图授权。在工作目录保存 PNG，并输出相对路径。受保护的内容无法截取。</string>
+    <string name="ui_capture_detail">请求系统截图授权，将 PNG 保存到 Pictures/Screenshots，并输出相册 URI。受保护的内容无法截取。</string>
     <string name="ui_custom_color">自定义颜色</string>
     <string name="ui_color_hue">色相</string>
     <string name="ui_color_saturation">饱和度</string>
@@ -517,4 +517,15 @@
     <string name="ui_root_degree">根指数</string>
     <string name="ui_angle_unit_hint">一周：360° = 2π rad = 400 gon</string>
     <string name="ui_action_round_number">数字取整</string>
+    <string name="ui_theme_system">跟随\n系统</string>
+    <string name="ui_theme_light">亮色\n主题</string>
+    <string name="ui_theme_dark">暗色\n主题</string>
+    <string name="ui_execution_standard">标准</string>
+    <string name="ui_execution_shizuku">Shizuku</string>
+    <string name="ui_execution_root">Root</string>
+    <string name="ui_camera_permission">拍照权限</string>
+    <string name="ui_album_permission">相册访问权限</string>
+    <string name="ui_limited_access">仅所选照片</string>
+    <string name="ui_drag_to_delete">拖到此处删除</string>
+    <string name="ui_drop_to_delete">松开以删除</string>
 </resources>

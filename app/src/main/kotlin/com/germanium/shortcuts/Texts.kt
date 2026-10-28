@@ -8,6 +8,18 @@ import com.germanium.shortcuts.core.InvalidDocument
 
 object Texts {
     val ids: Map<String, Int> = mapOf(
+        "theme_system" to R.string.ui_theme_system,
+        "theme_light" to R.string.ui_theme_light,
+        "theme_dark" to R.string.ui_theme_dark,
+        "execution_standard" to R.string.ui_execution_standard,
+        "execution_shizuku" to R.string.ui_execution_shizuku,
+        "execution_root" to R.string.ui_execution_root,
+        "camera_permission" to R.string.ui_camera_permission,
+        "album_permission" to R.string.ui_album_permission,
+        "limited_access" to R.string.ui_limited_access,
+        "drag_to_delete" to R.string.ui_drag_to_delete,
+        "drop_to_delete" to R.string.ui_drop_to_delete,
+
 
         "action_round_number" to R.string.ui_action_round_number,
 

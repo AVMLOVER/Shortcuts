@@ -68,7 +68,7 @@ class ScreenshotService : Service() {
                             }
                             currentCoroutineContext().ensureActive()
                             if (app.interactions.current.value !== request) throw CancellationException("Capture no longer requested")
-                            val path = app.workspace.writeBinary(request.folder, request.filename, png)
+                            val path = PublicScreenshots.save(app, request.filename, png)
                             app.interactions.reply(request, path); finishCapture()
                         } catch (e: Exception) { if (e is CancellationException) throw e; fail(e) } finally { image.close() }
                     }

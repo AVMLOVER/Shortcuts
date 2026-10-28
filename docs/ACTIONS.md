@@ -218,7 +218,7 @@ shell：command、timeoutSeconds（1..120）。标准模式应用 UID、Root su 
 
 `read_calendar`：date 为 yyyy-MM-dd、ISO 时间或 Unix 毫秒；zone 为空表示系统时区，否则为系统支持的 ZoneId。日期输入按指定时区换算成当地一天，边界按日历计算，因此夏令时切换日可为 23/25 小时。需要 READ_CALENDAR。查询可见日历的展开实例，覆盖重复、跨天、全天事件，全天事件按 UTC 日期处理。输出 List<Dictionary>；字段 id/title/start/end/allDay/description/location/calendarId。start/end 是 Unix 毫秒，allDay 是布尔值；无结果为空列表，超过 256 项或总输出限制时报错。
 
-`screenshot`：folder 默认 Screenshots，filename 默认 screenshot.png，支持变量，文件名必须为 .png。通过系统逐次授权后的 MediaProjection + ImageReader 截取屏幕/选定窗口；仅保留单次授权，不复用令牌。前台服务声明 mediaProjection 类型，捕获结束、取消或超时后释放。输出工作目录的相对路径，同名覆盖；PNG 最多 32 MiB，初始像素不超过 1600 万。快速查看在该相对路径指向工作目录 PNG 时显示缩略图。FLAG_SECURE 等受保护内容由系统屏蔽。该操作不静默读取屏幕，后台运行需先回到应用完成系统授权。
+`screenshot`（1.0.0）：filename 默认 screenshot.png，支持变量且必须为单个 .png 文件名。通过系统逐次授权后的 MediaProjection + ImageReader 截图，保存到公共 Pictures/Screenshots（通常 /sdcard/Pictures/Screenshots），输出 content:// 媒体 URI。Android 10+ 使用 MediaStore 的 RELATIVE_PATH 和 IS_PENDING；Android 8/9 按需申请旧版写入权限。保存失败会清理未完成记录，不覆盖已有照片。同名图片由系统或递增后缀处理。旧 XML 的 folder 字段不再影响截图目录。快速查看和图片操作支持该 URI。单次 PNG 最多 32 MiB、最多 1600 万初始像素；受 FLAG_SECURE 保护的内容仍由系统屏蔽。
 
 `format_date`：source 接受 yyyy-MM-dd，局部日期时间按所选 zone 解释；带 Z/偏移的时间保持原始瞬间再格式化。zone 弹框支持搜索全部系统时区，空值跟随系统。日期和格式预设只是参数填写辅助，仍可使用变量与自定义格式。
 

@@ -404,7 +404,7 @@
     <string name="ui_action_screenshot">Take screenshot</string>
     <string name="ui_capture_channel">Screen capture</string>
     <string name="ui_err_capture">Could not capture the screen. Try again and allow screen capture.</string>
-    <string name="ui_capture_detail">Requests system consent for each capture. Saves a PNG in the workspace and outputs its relative path. Protected content cannot be captured.</string>
+    <string name="ui_capture_detail">Requests system capture consent. Saves a PNG to Pictures/Screenshots and outputs its media URI. Protected content cannot be captured.</string>
     <string name="ui_custom_color">Custom color</string>
     <string name="ui_color_hue">Hue</string>
     <string name="ui_color_saturation">Saturation</string>
@@ -517,4 +517,15 @@
     <string name="ui_root_degree">Root degree</string>
     <string name="ui_angle_unit_hint">Full turn: 360° = 2π rad = 400 gon</string>
     <string name="ui_action_round_number">Round Number</string>
+    <string name="ui_theme_system">Follow\nsystem</string>
+    <string name="ui_theme_light">Light\ntheme</string>
+    <string name="ui_theme_dark">Dark\ntheme</string>
+    <string name="ui_execution_standard">Standard</string>
+    <string name="ui_execution_shizuku">Shizuku</string>
+    <string name="ui_execution_root">Root</string>
+    <string name="ui_camera_permission">Camera access</string>
+    <string name="ui_album_permission">Photo library access</string>
+    <string name="ui_limited_access">Selected photos only</string>
+    <string name="ui_drag_to_delete">Drag here to delete</string>
+    <string name="ui_drop_to_delete">Release to delete</string>
 </resources>

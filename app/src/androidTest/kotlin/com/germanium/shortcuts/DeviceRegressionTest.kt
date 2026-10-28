@@ -368,37 +368,40 @@ class DeviceRegressionTest {
         }
     }
     @Test fun screenshotOperationRequestsFreshSystemCaptureAndCancelsCleanly() = runBlocking {
-        val folder = "cancel-capture-${java.util.UUID.randomUUID()}"
-        val capture = step("screenshot", "folder" to folder, "filename" to "test.png")
+        val filename = "cancel-capture-${java.util.UUID.randomUUID()}.png"
+        val capture = step("screenshot", "filename" to filename)
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        try { withEditor(Shortcut(name = "Capture permission", steps = listOf(capture))) {
+        withEditor(Shortcut(name = "Capture permission", steps = listOf(capture))) {
             compose.onNodeWithTag("run_shortcut").performClick()
             compose.waitUntil(15000) { automation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId("android:id/button2")?.any { it.isEnabled } == true }
             val cancel = automation.rootInActiveWindow!!.findAccessibilityNodeInfosByViewId("android:id/button2").first { it.isEnabled }
             assertTrue(cancel.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
             compose.waitUntil(15000) { app.interactions.current.value == null && app.runs.state.value.runningId == null }
-            assertNull(app.workspace.imageFile("$folder/test.png"))
-        } } finally { runCatching { app.workspace.perform("delete_file", folder, "test.png", "") }; java.io.File(app.getExternalFilesDir(null), "workspace/$folder").delete() }
+            app.contentResolver.query(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, arrayOf(android.provider.MediaStore.Images.Media._ID), "${android.provider.MediaStore.Images.Media.DISPLAY_NAME}=?", arrayOf(filename), null)?.use { assertEquals(0, it.count) }
+        }
     }
     @Test fun systemScreenshotSavesAPngAndQuickLookShowsTheImage() = runBlocking {
-        val folder = "capture-test-${java.util.UUID.randomUUID()}"
-        val source = Shortcut(name = "Capture result", steps = listOf(step("screenshot", "folder" to folder, "filename" to "screen.png"), step("quick_look")))
+        val filename = "capture-test-${java.util.UUID.randomUUID()}.png"
+        val source = Shortcut(name = "Capture result", steps = listOf(step("screenshot", "filename" to filename), step("quick_look")))
+        var saved: android.net.Uri? = null
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         try { withEditor(source) {
             compose.onNodeWithTag("run_shortcut").performClick()
             compose.waitUntil(15000) {
-                automation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId("android:id/button1")?.any { it.isEnabled } == true || app.workspace.imageFile("$folder/screen.png") != null
+                automation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId("android:id/button1")?.any { it.isEnabled } == true || app.interactions.current.value is Interaction.QuickLook
             }
             val button = automation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId("android:id/button1")?.firstOrNull { it.isEnabled }
             if (button != null) assertTrue(button.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
             compose.waitUntil(15000) { compose.onAllNodesWithTag("screenshot_preview").fetchSemanticsNodes().isNotEmpty() }
-            val file = app.workspace.imageFile("$folder/screen.png") ?: error("PNG not saved")
+            val uri = android.net.Uri.parse((app.interactions.current.value as Interaction.QuickLook).text).also { saved = it }
+            assertEquals("content", uri.scheme)
             val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            android.graphics.BitmapFactory.decodeFile(file.absolutePath, bounds)
+            app.contentResolver.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
             assertTrue(bounds.outWidth > 0 && bounds.outHeight > 0); assertEquals("image/png", bounds.outMimeType)
+            if (android.os.Build.VERSION.SDK_INT >= 29) app.contentResolver.query(uri, arrayOf(android.provider.MediaStore.Images.Media.RELATIVE_PATH), null, null, null)!!.use { assertTrue(it.moveToFirst()); assertEquals("Pictures/Screenshots/", it.getString(0)) }
             capture("screenshot-preview")
             compose.onNodeWithTag("close_quick_look").performClick()
-        } } finally { runCatching { app.workspace.perform("delete_file", folder, "screen.png", "") }; java.io.File(app.getExternalFilesDir(null), "workspace/$folder").delete() }
+        } } finally { saved?.let { app.contentResolver.delete(it, null, null) } }
     }
     @Test fun calendarProviderIncludesRepeatedCrossDayAndAllDayInstances() = runBlocking {
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation

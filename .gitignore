@@ -12,3 +12,6 @@ local.properties
 signing.properties
 keystore.properties
 **/target/
+dist/
+__pycache__/
+*.pyc

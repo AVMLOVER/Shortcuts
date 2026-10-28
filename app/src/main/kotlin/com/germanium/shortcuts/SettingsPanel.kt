@@ -30,13 +30,13 @@ import com.germanium.shortcuts.core.*
             Text(t("theme"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 ThemeMode.entries.forEachIndexed { index, theme -> SegmentedButton(state.settings.theme == theme, { model.selectTheme(theme) }, shape = SegmentedButtonDefaults.itemShape(index, 3), enabled = enabled,
-                    modifier = Modifier.testTag("theme_${theme.name}")) { Text(t(when (theme) { ThemeMode.SYSTEM -> "system"; ThemeMode.LIGHT -> "light"; ThemeMode.DARK -> "dark" })) } }
+                    modifier = Modifier.weight(1f).height(64.dp).testTag("theme_${theme.name}")) { Text(t(when (theme) { ThemeMode.SYSTEM -> "theme_system"; ThemeMode.LIGHT -> "theme_light"; ThemeMode.DARK -> "theme_dark" }), minLines = 2, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelMedium) } }
             }
             if (Build.VERSION.SDK_INT >= 33) SettingsRow("locale_settings", R.drawable.ic_glyph_globe, click = { launch(Interaction.Launch(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.parse("package:${app.packageName}")))) })
         }
         SettingsGroup("execution", "execution_mode", R.drawable.ic_glyph_code) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(16.dp)) {
-                ExecutionMode.entries.forEachIndexed { index, mode -> SegmentedButton(state.settings.mode == mode, { model.selectMode(mode) }, shape = SegmentedButtonDefaults.itemShape(index, 3), enabled = enabled && state.runningId == null) { Text(t(modeKey(mode))) } }
+                ExecutionMode.entries.forEachIndexed { index, mode -> SegmentedButton(state.settings.mode == mode, { model.selectMode(mode) }, shape = SegmentedButtonDefaults.itemShape(index, 3), enabled = enabled && state.runningId == null) { Text(t("execution_${mode.name.lowercase(java.util.Locale.ROOT)}"), maxLines = 1) } }
             }
             Text(t(state.privilege.message), Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
             if (state.settings.mode != ExecutionMode.STANDARD) SettingsRow(if (state.authorizing) "authorizing" else "authorize", R.drawable.ic_glyph_check, enabled = !state.authorizing, click = model::authorize)
@@ -55,7 +55,9 @@ import com.germanium.shortcuts.core.*
             })
             SettingsRow("battery_permission", R.drawable.ic_glyph_bolt, status = t(if (state.batteryExempt) "allowed" else "not_allowed"), click = { launch(Interaction.Launch(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${app.packageName}")))) })
             SettingsRow("autostart", R.drawable.ic_automation, detail = t("autostart_hint"), click = { launch(Interaction.Launch(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.packageName}")))) })
-            SettingsRow("overlay_permission", R.drawable.ic_controls, click = { launch(Interaction.Launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${app.packageName}")))) })
+            SettingsRow("overlay_permission", R.drawable.ic_controls, status = t(if (state.overlayEnabled) "allowed" else "not_allowed"), click = { launch(Interaction.Launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${app.packageName}")))) })
+            SettingsRow("camera_permission", R.drawable.ic_glyph_camera, status = t(if (state.cameraEnabled) "allowed" else "not_allowed"), click = { launch(Interaction.Permissions(arrayOf(Manifest.permission.CAMERA))) })
+            SettingsRow("album_permission", R.drawable.ic_glyph_layers, status = t(state.albumStatus), click = { launch(Interaction.Permissions(MediaPermissions.albumRequest())) })
             SettingsRow("location_permission", R.drawable.ic_glyph_globe, status = t(if (state.locationEnabled) "allowed" else "not_allowed"), click = {
                 launch(Interaction.Permissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)))
             })
@@ -78,7 +80,7 @@ import com.germanium.shortcuts.core.*
                 Surface(shape = RoundedCornerShape(16.dp), color = androidx.compose.ui.res.colorResource(R.color.icon_background)) {
                     androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.ic_shortcuts), t("app_name"), Modifier.size(56.dp))
                 }
-                Column { Text("Shortcuts", style = MaterialTheme.typography.titleMedium); Text("0.7.0", style = MaterialTheme.typography.bodyMedium) }
+                Column { Text("Shortcuts", style = MaterialTheme.typography.titleMedium); Text(BuildConfig.VERSION_NAME, style = MaterialTheme.typography.bodyMedium) }
             }
         }
     }

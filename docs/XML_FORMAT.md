@@ -129,3 +129,7 @@ shortcut 新增可选 folder 属性，为所属文件夹 ID，空值表示不分
 `round_number` 参数为 source/rounding/digits，rounding 取 nearest、up、down，digits 为 −100..100 整数；输出数值并沿用原有 resultVariable/@action-id。calculate 的 round 操作也接受这两个新增配置，缺失时按四舍五入至整数执行。
 
 `current_date` 新增 format 与 zone 参数，输出改为格式化日期时间文本；缺少/留空 format 时使用当前地区默认格式，缺少/留空 zone 时使用系统时区。重命名显示标题不会更改已有动作 ID 或变量引用。
+
+## 1.0.0 截图存储
+
+`screenshot` 保留原动作 type/ID/filename，旧 folder 参数忽略，目录固定为公共 Pictures/Screenshots。输出从私有工作目录相对路径变为 MediaStore content URI，可直接传入图片操作和快速查看。XML 模式版本保持不变。

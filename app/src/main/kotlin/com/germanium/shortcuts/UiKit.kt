@@ -183,6 +183,10 @@ object StartupPermissions {
                     preferences.edit().putBoolean("batteryAsked", true).apply()
                     if (!app.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName)) app.interactions.ask(Interaction.Launch(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${app.packageName}"))))
                 }
+                if (!preferences.getBoolean("overlayAsked", false)) {
+                    preferences.edit().putBoolean("overlayAsked", true).apply()
+                    if (!Settings.canDrawOverlays(app)) app.interactions.ask(Interaction.Launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${app.packageName}"))))
+                }
             }.onFailure { app.diagnostics.trace("startup_permissions_failed", it) }
         }
     }

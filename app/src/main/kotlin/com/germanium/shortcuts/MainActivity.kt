@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 if (tab == 0 && searching) ShortcutSearchField(searchText, ::closeSearch, Modifier.weight(1f))
                 else {
                 if (tab == 0) IconButton(onClick = { scope.launch { drawer.open() } }) { AppIcon(R.drawable.ic_menu, description = t("folders")) }
-                Text(if (tab == 0) state.folders.find { it.id == selectedFolder }?.name ?: t("app_name") else t(listOf("app_name", "automation", "settings")[tab]), Modifier.weight(1f), style = MaterialTheme.typography.headlineLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(if (tab == 0) state.folders.find { it.id == selectedFolder }?.name ?: t("app_name") else t(listOf("app_name", "automation", "settings")[tab]), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 if (tab == 0) IconButton(onClick = { searching = true }, enabled = state.storageReady, modifier = Modifier.testTag("home_search")) { AppIcon(R.drawable.ic_search, description = t("search_shortcuts")) }
                 if (tab == 0) IconButton(onClick = { addingFolder = true }, enabled = state.storageReady && !state.saving) { AppIcon(R.drawable.ic_glyph_folder, description = t("new_folder")) }
                 if (tab == 0) IconButton(onClick = transfers.importXml, enabled = state.storageReady && !state.saving, modifier = Modifier.testTag("home_import")) { AppIcon(R.drawable.ic_export, description = t("import")) }
@@ -158,6 +158,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     } }
+    BackHandler(drawer.currentValue != DrawerValue.Closed || drawer.targetValue != DrawerValue.Closed) { scope.launch { drawer.close() } }
     if (addingFolder || editingFolder != null) FolderEditor(editingFolder, { addingFolder = false; editingFolder = null }, model::saveFolder)
     moveShortcut?.let { shortcut -> MoveToFolderSheet(shortcut, state.folders, { moveShortcut = null }) { model.moveToFolder(shortcut, it) } }
     deleting?.let { shortcut -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text(t("delete_title")) }, text = { Text(t("delete_body")) }, confirmButton = { TextButton(onClick = { model.delete(shortcut.id); deleting = null }) { Text(t("delete")) } }, dismissButton = { TextButton(onClick = { deleting = null }) { Text(t("cancel")) } }) }

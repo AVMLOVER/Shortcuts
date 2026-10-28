@@ -30,7 +30,7 @@ object ActionCatalog {
         ActionDefinition("number", "math", "123", listOf(ActionField("value", "number_type", "0"))),
         ActionDefinition("current_location", "device", "◎", emptyList()),
         ActionDefinition("read_calendar", "dates", "▣↓", listOf(ActionField("date", "date_type", java.time.LocalDate.now().toString()), ActionField("zone", "zone"))),
-        ActionDefinition("screenshot", "device", "▣", listOf(ActionField("folder", "folder", "Screenshots"), ActionField("filename", "filename", "screenshot.png"))),
+        ActionDefinition("screenshot", "device", "▣", listOf(ActionField("filename", "filename", "screenshot.png"))),
         ActionDefinition("append_text", "text", "T+", listOf(ActionField("target", "append_target", "{{input}}", true), ActionField("value", "value", multiline = true))),
         ActionDefinition("delay", "basic", "◷", listOf(ActionField("milliseconds", "duration", "500"), ActionField("unit", "unit", "milliseconds", choices = listOf("milliseconds" to "milliseconds", "seconds" to "seconds")))),
         ActionDefinition("show_result", "basic", "▤", listOf(ActionField("title", "title", "Shortcuts"), ActionField("body", "body", "{{input}}", true), ActionField("allowCancel", "allow_cancel", "false", choices = boolean))),

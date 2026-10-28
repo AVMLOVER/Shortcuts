@@ -19,15 +19,15 @@ android {
         applicationId = "com.germanium.shortcuts"
         minSdk = 26
         targetSdk = 37
-        versionCode = 7
-        versionName = "0.7.0"
+        versionCode = 10000
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures { compose = true; aidl = true }
+    buildFeatures { compose = true; aidl = true; buildConfig = true }
     signingConfigs {
         if (releaseSigningPath != null) create("release") {
             fun required(name: String) = releaseSigning.getProperty(name)?.takeIf { it.isNotBlank() } ?: error("Missing release signing property: $name")

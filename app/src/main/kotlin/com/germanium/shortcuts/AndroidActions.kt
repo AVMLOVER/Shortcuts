@@ -78,6 +78,10 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
     }
     override suspend fun readCalendarDay(day: CalendarDaySpec) = system.readCalendar(day)
     override suspend fun screenshot(folder: String, filename: String): Value {
+        if (android.os.Build.VERSION.SDK_INT <= 28 && !MediaPermissions.granted(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            interactions.ask(Interaction.Permissions(arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)))
+            if (!MediaPermissions.granted(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)) throw Problem("err_permission")
+        }
         val result = interactions.ask(Interaction.Capture(folder, filename)) ?: throw kotlinx.coroutines.CancellationException("Capture cancelled")
         return Value.Text(result)
     }
