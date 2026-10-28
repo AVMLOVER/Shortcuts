@@ -27,6 +27,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -54,8 +56,8 @@ internal class VariableSession {
     fun removeInspected() { insert("") }
 }
 
-private data class DisplayToken(val token: ReferenceToken, val start: Int, val end: Int)
-private class VariableTransformation(private val names: Map<String, String>, private val foreground: Color, private val maxWidth: Float, private val fontPx: Float) : VisualTransformation {
+private data class DisplayToken(val token: ReferenceToken, val start: Int, val end: Int, val missing: Boolean)
+private class VariableTransformation(private val names: Map<String, String>, private val foreground: Color, private val error: Color, private val missingLabel: String, private val maxWidth: Float, private val fontPx: Float) : VisualTransformation {
     var displayed: List<DisplayToken> = emptyList()
         private set
     override fun filter(text: AnnotatedString): TransformedText {
@@ -65,7 +67,8 @@ private class VariableTransformation(private val names: Map<String, String>, pri
         var cursor = 0
         for (token in TemplateEditing.tokens(text.text)) {
             result.append(text.text.substring(cursor, token.start))
-            var label = names[token.name] ?: token.name.takeUnless { it.startsWith('@') } ?: "…"
+            val missing = missingReference(token.name, names)
+            var label = if (missing) missingLabel else names[token.name] ?: token.name
             val limit = max(24f, maxWidth - fontPx * 3)
             if (paint.measureText(label) > limit) {
                 val original = label
@@ -74,13 +77,13 @@ private class VariableTransformation(private val names: Map<String, String>, pri
             }
             val start = result.length
             result.append("\u2066\u00A0")
-            result.pushStyle(SpanStyle(color = VariableOrange, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic))
+            result.pushStyle(SpanStyle(color = if (missing) error else VariableOrange, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic))
             result.append("x")
             result.pop()
-            result.pushStyle(SpanStyle(color = foreground, fontWeight = FontWeight.Medium))
+            result.pushStyle(SpanStyle(color = if (missing) error else foreground, fontWeight = FontWeight.Medium))
             result.append("\u00A0" + label.codePoints().toArray().map { String(Character.toChars(it)) }.joinToString("\u2060").replace(' ', '\u00A0') + "\u00A0")
             result.pop(); result.append("\u2069")
-            spans += DisplayToken(token, start, result.length)
+            spans += DisplayToken(token, start, result.length, missing)
             cursor = token.end
         }
         result.append(text.text.substring(cursor)); displayed = spans
@@ -120,7 +123,9 @@ private class VariableTransformation(private val names: Map<String, String>, pri
     val density = LocalDensity.current
     val fontPx = with(density) { 16.sp.toPx() }
     val colors = MaterialTheme.colorScheme
-    val transformation = remember(names, width, colors.onPrimaryContainer, fontPx) { VariableTransformation(names, colors.onPrimaryContainer, if (width == 0) 600f else width.toFloat(), fontPx) }
+    val missingLabel = t("missing_variable")
+    val invalid = remember(local.text, names) { TemplateEditing.tokens(local.text).any { missingReference(it.name, names) } }
+    val transformation = remember(names, width, colors, fontPx, missingLabel) { VariableTransformation(names, colors.onPrimaryContainer, colors.onErrorContainer, missingLabel, if (width == 0) 600f else width.toFloat(), fontPx) }
     fun apply(next: TextFieldValue) {
         if (next.text.length > 262144) return
         val edit = TemplateEditing.reconcile(local.text, next.text, next.selection.start, next.selection.end)
@@ -138,7 +143,7 @@ private class VariableTransformation(private val names: Map<String, String>, pri
         local = TextFieldValue(value, selection)
     } }
     LaunchedEffect(session.pendingFocus) { if (session.pendingFocus == id && enabled) { session.active = binding; requester.requestFocus(); keyboard?.show(); session.pendingFocus = null } }
-    BasicTextField(local, ::apply, modifier = modifier.fillMaxWidth().heightIn(min = 56.dp).focusRequester(requester).onFocusChanged {
+    BasicTextField(local, ::apply, modifier = modifier.semantics { if (invalid) error(missingLabel) }.fillMaxWidth().heightIn(min = 56.dp).focusRequester(requester).onFocusChanged {
         if (it.isFocused) { if (session.inspected?.field != id) session.inspected = null; session.active = binding; onFocus() }
     }, enabled = enabled, minLines = minLines, singleLine = !multiline,
         interactionSource = interaction, visualTransformation = transformation,
@@ -157,7 +162,7 @@ private class VariableTransformation(private val names: Map<String, String>, pri
                             var left = Float.MAX_VALUE; var right = -Float.MAX_VALUE
                             for (index in first until last) { val rect = measured.getBoundingBox(index); left = min(left, rect.left); right = max(right, rect.right) }
                             val top = measured.getLineTop(line) + 1.dp.toPx(); val bottom = measured.getLineBottom(line) - 1.dp.toPx()
-                            drawRoundRect(colors.primaryContainer.copy(alpha = 0.7f), Offset(left, top), Size((right - left).coerceAtLeast(0f), (bottom - top).coerceAtLeast(0f)), CornerRadius(9.dp.toPx()))
+                            drawRoundRect((if (span.missing) colors.errorContainer else colors.primaryContainer).copy(alpha = 0.7f), Offset(left, top), Size((right - left).coerceAtLeast(0f), (bottom - top).coerceAtLeast(0f)), CornerRadius(9.dp.toPx()))
                         }
                     }
                 }.pointerInput(transformation, enabled) {
@@ -177,7 +182,7 @@ private class VariableTransformation(private val names: Map<String, String>, pri
                     }
                 }) { inner() }
             }, enabled = enabled, singleLine = !multiline, visualTransformation = transformation,
-                interactionSource = interaction, label = { Text(label) },
-                container = { OutlinedTextFieldDefaults.Container(enabled, false, interaction, shape = RoundedCornerShape(16.dp)) })
+                interactionSource = interaction, label = { Text(label) }, isError = invalid,
+                container = { OutlinedTextFieldDefaults.Container(enabled, invalid, interaction, shape = RoundedCornerShape(16.dp)) })
         })
 }

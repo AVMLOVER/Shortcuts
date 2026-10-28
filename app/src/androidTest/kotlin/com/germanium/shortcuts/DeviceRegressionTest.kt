@@ -576,7 +576,9 @@ class DeviceRegressionTest {
         val first = step("text", "value" to "first"); val second = step("text", "value" to "second")
         val source = Shortcut(name = "Library drag", steps = listOf(first, second))
         withEditor(source) {
-            val target = compose.onNodeWithTag("drag_${first.id}").performScrollTo().fetchSemanticsNode().boundsInRoot.center + Offset(0f, 30f)
+            compose.onNodeWithTag("editor_actions").performScrollToNode(hasTestTag("action_${first.id}"))
+            val firstBounds = compose.onNodeWithTag("action_${first.id}").fetchSemanticsNode().boundsInRoot
+            val target = Offset(firstBounds.center.x, firstBounds.bottom + 4f)
             compose.onNodeWithTag("open_action_library").performClick()
             capture("action-library")
             compose.onNodeWithTag("library_search").performTextInput("generate_uuid")

@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
     }, floatingActionButton = {
         if (tab == 0 && state.storageReady && !state.saving && state.runningId == null) FloatingActionButton(onClick = { openEditor(activity) }, shape = RoundedCornerShape(22.dp), modifier = Modifier.size(64.dp).testTag("create_shortcut")) { AppIcon(R.drawable.ic_add, description = t("new_shortcut")) }
     }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), state = when (tab) { 1 -> automationScroll; 2 -> settingsScroll; else -> shortcutScroll }, contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding).testTag("home_content"), state = when (tab) { 1 -> automationScroll; 2 -> settingsScroll; else -> shortcutScroll }, contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item { Text(t("home_subtitle"), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (state.error != null) item { ErrorCard(state.error, if (state.storageReady) model::clearError else model::reload) }
             if (state.notice != null) item { Text(state.notice, color = MaterialTheme.colorScheme.primary) }
@@ -145,6 +145,7 @@ class MainActivity : ComponentActivity() {
                                     ToolIcon(R.drawable.ic_export, "export") { transfers.export(shortcut) }
                                     ToolIcon(R.drawable.ic_controls, "add_to_controls") { tileShortcut = shortcut }
                                     ToolIcon(R.drawable.ic_glyph_folder, "move_to_folder") { moveShortcut = shortcut }
+                                    ToolIcon(R.drawable.ic_copy, "duplicate", state.runningId == null && !state.saving, modifier = Modifier.testTag("copy_shortcut_${shortcut.id}")) { model.duplicate(shortcut) }
                                     ToolIcon(R.drawable.ic_close, "delete", state.runningId == null && !state.saving, danger = true) { deleting = shortcut }
                                 }
                             }

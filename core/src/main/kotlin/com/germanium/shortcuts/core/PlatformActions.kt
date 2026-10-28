@@ -20,6 +20,10 @@ interface PlatformActions {
     suspend fun openApp(packageName: String, className: String) = launchIntent(IntentSpec("android.intent.action.MAIN", packageName = packageName, className = className, categories = listOf("android.intent.category.LAUNCHER")))
     suspend fun clipboard(value: String? = null): String = throw Problem("err_backend")
     suspend fun requestUrl(url: String): String = throw Problem("err_backend")
+    suspend fun requestHttp(request: HttpRequestSpec): HttpResponseSpec {
+        require(request.method == "GET" && request.body == null && request.headers.isEmpty()) { throw Problem("err_backend") }
+        return HttpResponseSpec(request.url, 200, body = requestUrl(request.url).toByteArray(Charsets.UTF_8))
+    }
     suspend fun workspace(operation: String, folder: String, name: String, content: String = ""): Value = throw Problem("err_backend")
     suspend fun deviceInfo(): Value = throw Problem("err_backend")
     suspend fun readCalendarDay(day: CalendarDaySpec): Value = throw Problem("err_backend")

@@ -81,6 +81,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     var focused by remember { mutableStateOf<Pair<String, String>?>(null) }
     var appearancePicker by rememberSaveable { mutableStateOf(false) }
     var choosingOutput by rememberSaveable { mutableStateOf(false) }
+    var variableSourceOwner by rememberSaveable { mutableStateOf<String?>(null) }
     var originIndex by remember { mutableIntStateOf(0) }
     var originOffset by remember { mutableIntStateOf(0) }
     var revealedId by remember { mutableStateOf<String?>(null) }
@@ -103,9 +104,17 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     val dragTitles = remember(editor.layoutVersion, configuration) { rows.filterIsInstance<EditorRow.Action>().associate { row -> row.step.id to DragItem(row.step.id, row.scope, "${(indices[row.step.id] ?: 0) + 1}. " + (ActionCatalog.forStep(row.step)?.let { context.tr(it.title) } ?: row.step.type)) } }
     val referenceNames = remember(editor.layoutVersion, editor.referenceVersion, configuration) { buildMap {
         put("input", context.tr("previous_result"))
+        flatSteps.forEach { step ->
+            step.parameters["resultVariable"]?.takeIf(String::isNotBlank)?.let { put(it, it) }
+            if (step.type in listOf("create_variable", "set_variable")) step.parameters["name"]?.takeIf(String::isNotBlank)?.let { put(it, it) }
+            if (step.type == "shell") listOf("shell_stdout", "shell_stderr", "shell_exit_code").forEach { put(it, it) }
+            if (step.type in listOf("repeat", "repeat_each", "repeat_until")) put("repeat_index", "repeat_index")
+            if (step.type == "repeat_each") put("repeat_item", "repeat_item")
+            if (step.type == "menu") put("menu_choice", "menu_choice")
+        }
         flatSteps.forEachIndexed { index, step ->
             val label = step.parameters["resultVariable"]?.takeIf(String::isNotBlank) ?: "${index + 1}. " + (if (step.type == "repeat_until") context.tr("repeat_result") else ActionCatalog.forStep(step)?.let { context.tr(it.title) } ?: step.type)
-            put("@${step.id}", label)
+            if (ActionOutputs.produces(step.type)) put("@${step.id}", label)
             ActionOutputs.properties(step.type).forEach { property -> put("@${step.id}.$property", "$label · ${context.tr(outputPropertyLabel(step.type, property))}") }
         }
     } }
@@ -116,12 +125,15 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     val busy = state.runningId != null || state.saving
     LaunchedEffect(busy) { if (busy) { variables.inspected = null; choosingOutput = false } }
     fun restoreInput() {
-        choosingOutput = false
-        scope.launch { withFrameNanos { }; listState.scrollToItem(originIndex.coerceAtMost((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)), originOffset); variables.pendingFocus = variables.active?.id }
+        val fromSourcePicker = variableSourceOwner != null
+        choosingOutput = false; variableSourceOwner = null
+        if (fromSourcePicker) { focused = null; variables.active = null }
+        scope.launch { withFrameNanos { }; listState.scrollToItem(originIndex.coerceAtMost((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)), originOffset); if (!fromSourcePicker) variables.pendingFocus = variables.active?.id }
     }
     fun beginChoosing() { if (focused == null) return; originIndex = listState.firstVisibleItemIndex; originOffset = listState.firstVisibleItemScrollOffset; keyboard?.hide(); focusManager.clearFocus(); variables.inspected = null; choosingOutput = true }
     fun leave() { if (choosingOutput) { restoreInput(); return }; if (variables.inspected != null) { variables.inspected = null; return }; if (busy) { model.cancelRun(); return }; if (editor.dirty) confirmLeave = true else model.closeEditor() }
     fun parameter(step: ActionStep, key: String, value: String) = model.update(step.copy(parameters = step.parameters + (key to value)))
+    fun removeAction(id: String) { focused = null; variables.inspected = null; model.remove(id) }
     val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val selectedId = reselect; val owner = targetOwner; val branch = targetBranch
         if (uri != null) model.selectApk(uri, owner, branch, selectedId, insertionAnchor, insertionBefore)
@@ -130,7 +142,11 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     }
     fun chooseApk(id: String? = null) { reselect = id; runCatching { apkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream")) }.onFailure(model::report) }
     fun insertReference(name: String) { variables.insert("{{$name}}") }
-    fun chooseOutput(id: String) { insertReference("@$id"); restoreInput() }
+    fun chooseOutput(id: String) {
+        val owner = variableSourceOwner?.let(byId::get)
+        if (owner != null) parameter(owner, "name", "@$id") else insertReference("@$id")
+        restoreInput()
+    }
     fun openLibrary(owner: String? = null, branch: String? = null) { insertionAnchor = null; targetOwner = owner; targetBranch = branch; library = true }
     fun addFromLibrary(definition: ActionDefinition) {
         library = false
@@ -139,10 +155,9 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
         else { model.add(definition.type, targetOwner, targetBranch, anchor = insertionAnchor, before = insertionBefore); insertionAnchor = null }
     }
     val dropAction by rememberUpdatedState<(String, androidx.compose.ui.geometry.Offset) -> Unit> { type, point ->
-        val footer = libraryFooters[libraryFooterTarget] ?: libraryFooters.values.firstOrNull { it.second.contains(point) }
-        val nearest = drag.handles.entries.minByOrNull { kotlin.math.abs(it.value.center.y - point.y) }
-        if (footer != null) { targetOwner = footer.first.owner; targetBranch = footer.first.branch; insertionAnchor = null }
-        else { insertionAnchor = libraryDestination?.target ?: nearest?.key; insertionBefore = libraryDestination?.before ?: (nearest?.let { point.y < it.value.center.y } ?: false); targetOwner = null; targetBranch = null }
+        val destination = libraryDestination ?: drag.destinationAt(point, "library")
+        if (destination?.branch != null) { targetOwner = destination.target; targetBranch = destination.branch; insertionAnchor = null }
+        else { insertionAnchor = destination?.target; insertionBefore = destination?.before ?: false; targetOwner = null; targetBranch = null }
         ActionCatalog.find(type)?.let(::addFromLibrary)
     }
     DisposableEffect(editorView, editor.original.id) {
@@ -153,9 +168,9 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                 android.view.DragEvent.ACTION_DRAG_LOCATION -> {
                     libraryPointer = androidx.compose.ui.geometry.Offset(event.x, event.y) - drag.origin
                     if (drag.overDelete(libraryPointer)) { libraryDestination = null; libraryFooterTarget = null; libraryDropTarget = null }
-                    else if (drag.gapBounds?.contains(libraryPointer) != true) {
-                        libraryFooterTarget = libraryFooters.entries.firstOrNull { it.value.second.contains(libraryPointer) }?.key
-                        libraryDestination = if (libraryFooterTarget != null) null else drag.handles.entries.minByOrNull { kotlin.math.abs(it.value.center.y - libraryPointer.y) }?.let { DragDestination("library", it.key, libraryPointer.y < it.value.center.y) }
+                    else if (drag.gapBounds?.contains(libraryPointer + drag.origin) != true) {
+                        libraryDestination = drag.destinationAt(libraryPointer, "library")
+                        libraryFooterTarget = libraryDestination?.takeIf { it.branch != null }?.let { "add:${it.target}:${it.branch}" }
                         libraryDropTarget = libraryDestination?.target
                     }
                     true
@@ -173,7 +188,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             withFrameNanos { now ->
                 val elapsed = if (previous == 0L) 0f else ((now - previous) / 1_000_000_000f).coerceAtMost(0.05f)
                 previous = now
-                val speed = if (drag.overDelete(libraryPointer)) 0f else when { libraryPointer.y < 160f -> -1000f; libraryPointer.y > drag.height - 160f -> 1000f; else -> 0f }
+                val speed = if (drag.overDelete(libraryPointer)) 0f else when { libraryPointer.y < 160f -> -2800f; libraryPointer.y > drag.height - 160f -> 2800f; else -> 0f }
                 speed * elapsed
             }.let { if (it != 0f) listState.scrollBy(it) }
         }
@@ -184,11 +199,13 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     Scaffold(modifier = Modifier.fillMaxSize().testTag("shortcut_editor_fullscreen"), topBar = {
         TopAppBar(title = {
             if (draggingActions) DragDeleteTarget(drag.overDelete(if (libraryDragging) libraryPointer else drag.pointer), Modifier.onGloballyPositioned { drag.deleteBounds = Rect(it.positionInRoot(), it.size.toSize()) })
-            else Text(t(if (choosingOutput) "select_output" else "edit_shortcut"))
+            else Text(t(if (choosingOutput) "select_output" else "edit_shortcut"), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }, navigationIcon = { if (!draggingActions) IconButton(onClick = ::leave) { AppIcon(R.drawable.ic_back, description = t("back")) } }, actions = {
             if (!draggingActions) {
             if (choosingOutput) TextButton(onClick = ::restoreInput) { Text(t("cancel")) } else {
-            IconButton(onClick = { try { transfers.export(editor.shortcut()) } catch (e: Exception) { model.report(e) } }, enabled = !busy) { AppIcon(R.drawable.ic_export, description = t("export")) }
+            ToolIcon(R.drawable.ic_export, "export", !busy, modifier = Modifier.testTag("editor_export")) { try { transfers.export(editor.shortcut()) } catch (e: Exception) { model.report(e) } }
+            ToolIcon(R.drawable.ic_undo, "undo", !busy && editor.canUndo, modifier = Modifier.testTag("editor_undo")) { keyboard?.hide(); focusManager.clearFocus(); focused = null; variables.inspected = null; model.undo() }
+            ToolIcon(R.drawable.ic_redo, "redo", !busy && editor.canRedo, modifier = Modifier.testTag("editor_redo")) { keyboard?.hide(); focusManager.clearFocus(); focused = null; variables.inspected = null; model.redo() }
             TextButton(onClick = { model.saveEditor() }, enabled = !busy && state.storageReady && (editor.steps.isEmpty() || editor.name.isNotBlank()), modifier = Modifier.testTag("save_shortcut")) { Text(t(if (state.saving) "saving" else "done")) }
             }
             }
@@ -203,7 +220,8 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                 val inspectedResult = source?.let { observed[it.id] }
                 val inspectedProperty = reference.removePrefix("@").substringAfter('.', "")
                 val inspectedPreview = if (inspectedProperty.isNotEmpty()) (inspectedResult?.properties?.get(inspectedProperty) ?: (inspectedResult?.value as? Value.Dictionary)?.entries?.get(inspectedProperty))?.text() else inspectedResult?.output
-                VariableInspector(referenceNames[reference] ?: reference, inspectedPreview, replace = ::beginChoosing,
+                val missing = missingReference(reference, referenceNames)
+                VariableInspector(if (missing) t("missing_variable") else referenceNames[reference] ?: reference, inspectedPreview, missing = missing, replace = ::beginChoosing,
                     remove = { variables.removeInspected() }, close = { variables.inspected = null }, reveal = source?.let { step -> { originIndex = listState.firstVisibleItemIndex; originOffset = listState.firstVisibleItemScrollOffset; scope.launch { val index = rows.indexOfFirst { it is EditorRow.Action && it.step.id == step.id }; if (index >= 0) { listState.animateScrollToItem(index + 1); revealedId = step.id } } } })
             }
             if (choosingOutput) Text(t("tap_output_inline"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
@@ -225,7 +243,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
         } } }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).onGloballyPositioned { drag.origin = it.positionInRoot(); drag.height = it.size.height.toFloat() }
-            .editorDragGestures(drag, !busy && !choosingOutput, started = { keyboard?.hide(); focusManager.clearFocus(); haptics.performHapticFeedback(HapticFeedbackType.LongPress) }, deleted = { id -> focused = null; variables.inspected = null; model.remove(id) }, finished = { model.place(it.source, it.target, it.before) })
+            .editorDragGestures(drag, !busy && !choosingOutput, started = { keyboard?.hide(); focusManager.clearFocus(); haptics.performHapticFeedback(HapticFeedbackType.LongPress) }, deleted = ::removeAction, finished = { model.place(it.source, it.target, it.before, it.branch) })
             .testTag("editor_viewport")) {
         LazyColumn(Modifier.fillMaxSize().testTag("editor_actions"), state = listState, contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -237,20 +255,20 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             items(rows, key = { it.key }) { row ->
                 val indent = Modifier.padding(start = (minOf(row.depth, 3) * 12).dp)
                 val insertion = if (libraryDragging) libraryDestination else drag.destination
-                val gapBefore = row is EditorRow.Action && insertion?.target == row.step.id && insertion.before || row is EditorRow.Footer && libraryDragging && libraryFooterTarget == row.key
-                val gapAfter = when (row) { is EditorRow.Action -> row.step.branches.isEmpty() && insertion?.target == row.step.id && !insertion.before; is EditorRow.End -> insertion?.target == row.step.id && !insertion.before; else -> false }
+                val gapBefore = when (row) { is EditorRow.Action -> insertion?.branch == null && insertion?.target == row.step.id && insertion.before; is EditorRow.Footer -> insertion?.target == row.owner.id && insertion.branch == row.branch.id; else -> false }
+                val gapAfter = insertion?.branch == null && when (row) { is EditorRow.Action -> row.step.branches.isEmpty() && insertion?.target == row.step.id && !insertion.before; is EditorRow.End -> insertion?.target == row.step.id && !insertion.before; else -> false }
                 Column(Modifier.animateItem()) {
-                DragInsertionGap(gapBefore, indent.onGloballyPositioned { if (gapBefore) drag.gapBounds = Rect(it.positionInRoot() - drag.origin, it.size.toSize()) })
+                DragInsertionGap(gapBefore, indent.onGloballyPositioned { if (gapBefore) drag.gapBounds = Rect(it.positionInRoot(), it.size.toSize()) })
                 when (row) {
                     is EditorRow.Action -> {
                         val step = byId.getValue(row.step.id); val definition = ActionCatalog.forStep(step)
-                        DisposableEffect(step.id) { onDispose { drag.handles.remove(step.id) } }
-                        Card(indent.fillMaxWidth().graphicsLayer { alpha = if (drag.source == step.id) 0.45f else 1f }.testTag("action_${step.id}"), border = if (drag.destination?.target == step.id || revealedId == step.id || libraryDropTarget == step.id) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = when { state.result?.failedStepId == step.id -> MaterialTheme.colorScheme.errorContainer; state.currentStepId == step.id -> MaterialTheme.colorScheme.primaryContainer; else -> MaterialTheme.colorScheme.surfaceContainerHigh })) {
+                        DisposableEffect(step.id) { onDispose { drag.handles.remove(step.id); drag.beforeBounds.remove(step.id); if (step.branches.isEmpty()) drag.afterBounds.remove(step.id) } }
+                        Card(indent.fillMaxWidth().onGloballyPositioned { val bounds = Rect(it.positionInRoot(), it.size.toSize()); drag.beforeBounds[step.id] = bounds; if (step.branches.isEmpty()) drag.afterBounds[step.id] = bounds }.graphicsLayer { alpha = if (drag.source == step.id) 0.45f else 1f }.testTag("action_${step.id}"), border = if (drag.destination?.target == step.id || revealedId == step.id || libraryDropTarget == step.id) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = when { state.result?.failedStepId == step.id -> MaterialTheme.colorScheme.errorContainer; state.currentStepId == step.id -> MaterialTheme.colorScheme.primaryContainer; else -> MaterialTheme.colorScheme.surfaceContainerHigh })) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     val dragDescription = t("drag_action")
                                     Box(Modifier.size(44.dp).testTag("drag_${step.id}").semantics { contentDescription = dragDescription }
-                                        .onGloballyPositioned { val position = it.positionInRoot() - drag.origin; drag.handles[step.id] = Rect(position, it.size.toSize()) }, contentAlignment = Alignment.Center) { AppIcon(R.drawable.ic_drag) }
+                                        .onGloballyPositioned { val position = it.positionInRoot(); drag.handles[step.id] = Rect(position, it.size.toSize()) }, contentAlignment = Alignment.Center) { AppIcon(R.drawable.ic_drag) }
                                     ActionIcon(definition)
                                     Column(Modifier.weight(1f)) { Text(if (definition == null) step.type else t(definition.title), style = MaterialTheme.typography.titleMedium); Text(t(if (step.enabled) "enabled" else "disabled"), style = MaterialTheme.typography.labelSmall) }
                                     if (!choosingOutput) ExpressiveSwitch(step.enabled, { model.update(step.copy(enabled = it)) }, enabled = !busy)
@@ -262,6 +280,15 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     }
                                 } else {
                                 definition?.fields?.forEach { field ->
+                                    if (step.type == "get_url") {
+                                        val method = step.parameters["method"] ?: "GET"
+                                        val bodyType = step.parameters["bodyType"] ?: "json"
+                                        if (field.key == "customMethod" && method != "variable") return@forEach
+                                        if (field.key in listOf("bodyType", "body", "bodyFile", "contentType") && method in listOf("GET", "DELETE")) return@forEach
+                                        if (field.key == "body" && bodyType !in listOf("json", "text")) return@forEach
+                                        if (field.key == "bodyFile" && bodyType != "file") return@forEach
+                                        if (field.key == "contentType" && bodyType !in listOf("file", "text")) return@forEach
+                                    }
                                     if (step.type == "factor_number" && field.key == "powers" && (step.parameters["factorType"] ?: "prime_factors") != "prime_factors") return@forEach
                                     if (step.type == "mask_image" && field.key in listOf("secondary", "maskMode") && (step.parameters["maskShape"] ?: "ellipse") != "custom") return@forEach
                                     if (step.type == "mask_image" && field.key == "radius" && step.parameters["maskShape"] != "rounded") return@forEach
@@ -287,12 +314,18 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                             } else parameter(step, field.key, key)
                                         }, enabled = !busy, label = { Text(if (label in Texts.ids) t(label) else label) }) } }
                                     } else {
-                                        if (field.key in listOf("name", "timeoutSeconds")) OutlinedTextField(step.parameters[field.key] ?: field.initial, { parameter(step, field.key, it) }, label = { Text(t(fieldLabel)) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), leadingIcon = if (field.key == "name") ({ VariableGlyph() }) else null, modifier = Modifier.fillMaxWidth().testTag("field_${step.id}_${field.key}").onFocusChanged { if (it.isFocused) focused = null })
+                                        if (step.type == "get_variable" && field.key == "name") {
+                                            val sourcePath = TreeEdits.pathTo(editor.steps, step.id).orEmpty().dropLast(1)
+                                            val sourceLoops = sourcePath.flatMap { if (it.type == "repeat_each") listOf("repeat_item", "repeat_index") else if (it.type in listOf("repeat", "repeat_until")) listOf("repeat_index") else emptyList() }
+                                            val known = (sourceLoops + TreeEdits.availableBefore(editor.steps, step.id).flatMap { previous -> listOfNotNull(previous.parameters["resultVariable"]?.takeIf(String::isNotBlank), previous.parameters["name"].takeIf { previous.type in listOf("set_variable", "create_variable") }) }).distinct()
+                                            VariableSourcePicker(step.id, step.parameters["name"] ?: "input", known, referenceNames, !busy,
+                                                choose = { parameter(step, "name", it) }, magic = { focused = step.id to "name"; variableSourceOwner = step.id; beginChoosing() })
+                                        } else if (field.key in listOf("name", "timeoutSeconds")) OutlinedTextField(step.parameters[field.key] ?: field.initial, { parameter(step, field.key, it) }, label = { Text(t(fieldLabel)) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), leadingIcon = if (field.key == "name") ({ VariableGlyph() }) else null, modifier = Modifier.fillMaxWidth().testTag("field_${step.id}_${field.key}").onFocusChanged { if (it.isFocused) focused = null })
                                         else VariableTextField("${step.id}:${field.key}", step.parameters[field.key] ?: field.initial, { parameter(step, field.key, it) }, t(fieldLabel), variables, referenceNames, modifier = Modifier.testTag("field_${step.id}_${field.key}"), enabled = !busy, multiline = field.multiline, focused = { focused = step.id to field.key }, keyboardType = if (step.type == "number" || step.type == "calculate" && field.key in listOf("left", "right", "digits") || step.type == "round_number" && field.key in listOf("source", "digits")) androidx.compose.ui.text.input.KeyboardType.Decimal else androidx.compose.ui.text.input.KeyboardType.Text)
                                         if ((step.type == "delay" && field.key == "milliseconds") || (step.type == "vibrate" && field.key in listOf("duration", "amplitude"))) NumericParameterControls(step.parameters[field.key] ?: field.initial, step.parameters["unit"] ?: "milliseconds", field.key == "amplitude", !busy) { parameter(step, field.key, it) }
                                         if ((step.type == "read_calendar" && field.key == "date") || (step.type == "format_date" && field.key == "source") || (step.type == "calendar" && field.key in listOf("start", "end"))) DateParameterPresets(step.parameters[field.key].orEmpty(), !busy, step.type == "calendar", field.key == "end") { parameter(step, field.key, it) }
                                         if (step.type in listOf("format_date", "current_date") && field.key == "format") DateFormatPresets(!busy) { parameter(step, field.key, it) }
-                                        if (field.key == "name" && step.type in listOf("get_variable", "append_variable")) {
+                                        if (field.key == "name" && step.type in listOf("set_variable", "append_variable")) {
                                             val before = indices[step.id] ?: 0
                                             val known = flatSteps.take(before).flatMap { previous -> listOfNotNull(previous.parameters["resultVariable"]?.takeIf(String::isNotBlank), previous.parameters["name"].takeIf { previous.type in listOf("set_variable", "create_variable") }) }.distinct()
                                             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { items(known, key = { it }) { name -> AssistChip(onClick = { parameter(step, "name", name) }, enabled = !busy, label = { Text(name) }) } }
@@ -306,7 +339,16 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                         if (step.type == "compress_image" && field.key == "quality") (step.parameters[field.key] ?: field.initial).toIntOrNull()?.let { quality -> Slider(quality.toFloat().coerceIn(0f, 100f), { parameter(step, "quality", it.toInt().toString()) }, valueRange = 0f..100f, enabled = !busy, modifier = Modifier.testTag("compression_quality_${step.id}")) }
                                     }
                                 }
-                                if (step.type in listOf("dictionary", "intent", "get_url", "get_html")) TypedEntriesEditor(step, step.type == "intent", !busy, model::update, variables, referenceNames) { key -> focused = key?.let { step.id to it } }
+                                if (step.type in listOf("dictionary", "intent", "get_url", "get_html", "expand_url", "get_url_headers")) TypedEntriesEditor(step, step.type == "intent", !busy, model::update, variables, referenceNames) { key -> focused = key?.let { step.id to it } }
+                                if (step.type in listOf("get_url", "get_html", "expand_url", "get_url_headers")) {
+                                    TypedEntriesEditor(step, false, !busy, model::update, variables, referenceNames, prefixOverride = "header", titleKey = "request_headers", typedOverride = false) { key -> focused = key?.let { step.id to it } }
+                                    if (step.type == "get_url" && step.parameters["method"] !in listOf(null, "GET", "DELETE") && (step.parameters["bodyType"] ?: "json") in listOf("json", "form"))
+                                        TypedEntriesEditor(step, false, !busy, model::update, variables, referenceNames, prefixOverride = "bodyEntry", titleKey = "request_body", typedOverride = step.parameters["bodyType"] != "form") { key -> focused = key?.let { step.id to it } }
+                                    if (step.type == "get_url" && step.parameters["bodyType"] == "file") FilledTonalButton(onClick = { scope.launch {
+                                        try { val uri = (context.applicationContext as ShortcutsApplication).interactions.ask(Interaction.PickFile(false)); if (uri != null) parameter(step, "bodyFile", uri) }
+                                        catch (e: Exception) { if (e is CancellationException) throw e; model.report(e) }
+                                    } }, enabled = !busy) { Text(t("action_choose_file")) }
+                                }
                                 if (step.type == "list") ListEntriesEditor(step, !busy, model::update, variables, referenceNames) { key -> focused = key?.let { step.id to it } }
                                 if (step.type == "open_app") {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) { AppPackageIcon(step.parameters["packageName"].orEmpty()); Column { Text(step.parameters["displayName"].orEmpty()); Text(step.parameters["packageName"].orEmpty(), style = MaterialTheme.typography.bodySmall) } }
@@ -324,6 +366,8 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (step.type == "share_input") Text(t("share_input_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type in listOf("mask_image", "overlay_image", "flip_image", "combine_images", "resize_image", "compress_image", "text_image")) Text(t("image_transform_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "factor_number") Text(t("factor_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "set_variable") Text(t("set_variable_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "append_variable") Text(t("append_variable_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "resize_image") Text(t("resize_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "compress_image") Text(t("compression_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "make_pdf") Text(t("make_pdf_hint"), style = MaterialTheme.typography.bodySmall)
@@ -336,11 +380,11 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     catch (e: Exception) { if (e is CancellationException) throw e; model.report(e) }
                                 } }, enabled = !busy) { Text(t("action_choose_file")) }
                                 if (step.type == "shell" && state.currentStepId == step.id && state.runningId != null) LiveShell(state.shellStdout, state.shellStderr)
-                                if (ActionOutputs.produces(step.type)) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                if (ActionOutputs.produces(step.type) && !ActionOutputs.isVariableAction(step.type)) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(t("add_to_variable_bar"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                                     ExpressiveSwitch(ActionOutputs.inVariableBar(step), { parameter(step, "inVariableBar", it.toString()) }, enabled = !busy, modifier = Modifier.testTag("variable_bar_toggle_${step.id}"))
                                 }
-                                if (ActionOutputs.produces(step.type) && step.type !in listOf("create_variable", "append_variable", "get_variable")) OutlinedTextField(step.parameters["resultVariable"].orEmpty(), { parameter(step, "resultVariable", it) }, label = { Text(t("save_result")) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) focused = null })
+                                if (ActionOutputs.produces(step.type) && !ActionOutputs.isVariableAction(step.type)) OutlinedTextField(step.parameters["resultVariable"].orEmpty(), { parameter(step, "resultVariable", it) }, label = { Text(t("save_result")) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) focused = null })
                                 if (ActionOutputs.produces(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < 1000) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
                                 if (step.type == "if" && step.branches.none { it.id == "else" }) OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch("else"))) }, enabled = !busy) { Text(t("add_else")) }
                                 if (step.type == "menu") OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch(label = context.tr("menu_item") + " ${step.branches.size + 1}"))) }, enabled = !busy && step.branches.size < 30) { Text(t("add_menu_item")) }
@@ -349,7 +393,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     TextButton(onClick = { model.move(step.id, -1) }, enabled = !busy && row.index > 0) { Text(t("move_up")) }
                                     TextButton(onClick = { model.move(step.id, 1) }, enabled = !busy && row.index < row.size - 1) { Text(t("move_down")) }
                                     TextButton(onClick = { model.editSteps(TreeEdits.copyAfter(editor.steps, step.id)) }, enabled = !busy && flatSteps.size * 2 < 1000) { Text(t("duplicate")) }
-                                    TextButton(onClick = { focused = null; model.remove(step.id) }, enabled = !busy) { Text(t("remove")) }
+                                    TextButton(onClick = { removeAction(step.id) }, enabled = !busy, modifier = Modifier.testTag("remove_action_${step.id}")) { Text(t("remove")) }
                                 }
                                 }
                             }
@@ -364,17 +408,20 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                     }
                     }
                     is EditorRow.Footer -> {
-                        DisposableEffect(row.key) { onDispose { libraryFooters.remove(row.key) } }
-                        OutlinedButton(onClick = { openLibrary(row.owner.id, row.branch.id) }, enabled = !busy && !choosingOutput && row.depth < 16, modifier = indent.fillMaxWidth().onGloballyPositioned { libraryFooters[row.key] = DragScope(row.owner.id, row.branch.id) to Rect(it.positionInRoot() - drag.origin, it.size.toSize()) }) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_action")) }
+                        DisposableEffect(row.key) { onDispose { libraryFooters.remove(row.key); drag.branchEnds.remove(row.key) } }
+                        OutlinedButton(onClick = { openLibrary(row.owner.id, row.branch.id) }, enabled = !busy && !choosingOutput && row.depth < 16, modifier = indent.fillMaxWidth().onGloballyPositioned { val bounds = DragScope(row.owner.id, row.branch.id) to Rect(it.positionInRoot(), it.size.toSize()); libraryFooters[row.key] = bounds; drag.branchEnds[row.key] = bounds }) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_action")) }
                     }
-                    is EditorRow.End -> Surface(modifier = indent.fillMaxWidth().testTag("end_${row.step.id}"), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                    is EditorRow.End -> {
+                        DisposableEffect(row.step.id) { onDispose { drag.afterBounds.remove(row.step.id) } }
+                        Surface(modifier = indent.fillMaxWidth().onGloballyPositioned { drag.afterBounds[row.step.id] = Rect(it.positionInRoot(), it.size.toSize()) }.testTag("end_${row.step.id}"), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(t(when (row.step.type) { "if" -> "end_if"; "menu" -> "end_menu"; else -> "end_repeat" }), style = MaterialTheme.typography.titleSmall)
                             if (row.step.type == "repeat_until" && !choosingOutput) RepeatEndCondition(byId[row.step.id] ?: row.step, !busy, variables, referenceNames, { key -> focused = row.step.id to key }) { key, value -> parameter(byId[row.step.id] ?: row.step, key, value) }
                         }
                     }
                 }
-                DragInsertionGap(gapAfter, indent.onGloballyPositioned { if (gapAfter) drag.gapBounds = Rect(it.positionInRoot() - drag.origin, it.size.toSize()) })
+                }
+                DragInsertionGap(gapAfter, indent.onGloballyPositioned { if (gapAfter) drag.gapBounds = Rect(it.positionInRoot(), it.size.toSize()) })
                 }
             }
             state.result?.let { result -> item { ResultCard(result); TextButton(onClick = { scope.launch { (context.applicationContext as ShortcutsApplication).actions.quickLook(result.steps.lastOrNull()?.value ?: Value.Text("")) } }) { Text(t("quick_look")) } } }
@@ -396,20 +443,21 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     }
 }
 
-@Composable private fun TypedEntriesEditor(step: ActionStep, extras: Boolean, enabled: Boolean, onChange: (ActionStep) -> Unit, variables: VariableSession, referenceNames: Map<String, String>, onFocus: (String?) -> Unit) {
-    val query = step.type in listOf("get_url", "get_html")
-    val prefix = if (query) "query" else if (extras) "extra" else "entry"; val legacy = if (query) "query" else if (extras) "extras" else "entries"
+@Composable private fun TypedEntriesEditor(step: ActionStep, extras: Boolean, enabled: Boolean, onChange: (ActionStep) -> Unit, variables: VariableSession, referenceNames: Map<String, String>, prefixOverride: String? = null, titleKey: String? = null, typedOverride: Boolean? = null, onFocus: (String?) -> Unit) {
+    val query = step.type in listOf("get_url", "get_html", "expand_url", "get_url_headers")
+    val prefix = prefixOverride ?: if (query) "query" else if (extras) "extra" else "entry"; val legacy = prefixOverride ?: if (query) "query" else if (extras) "extras" else "entries"
+    val typed = typedOverride ?: !query
     val parsed = runCatching { readEntrySpecs(step.parameters, prefix, legacy) }
     if (parsed.isFailure) { Text(t("err_invalid_data")); TextButton(onClick = { onChange(step.copy(parameters = writeEntrySpecs(step.parameters, prefix, legacy, emptyList()))) }) { Text(t("reset")) }; return }
     val entries = parsed.getOrThrow(); val choices = if (extras) ActionCatalog.extraTypes else ActionCatalog.valueTypes
-    val blank = EntrySpec(if (extras) "string" else "auto", "", "")
+    val blank = EntrySpec(if (extras) "string" else if (typed) "auto" else "text", "", "")
     val rows = entries.ifEmpty { listOf(blank) }
     var pendingFocus by remember(step.id) { mutableStateOf<Int?>(null) }
     fun commit(updated: List<EntrySpec>) { onChange(step.copy(parameters = writeEntrySpecs(step.parameters, prefix, legacy, updated))) }
     fun change(index: Int, entry: EntrySpec) { commit(if (index < entries.size) entries.mapIndexed { i, old -> if (i == index) entry else old } else entries + entry) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(t(if (query) "query_parameters" else if (extras) "extras" else "action_dictionary"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-        TextButton(onClick = { pendingFocus = rows.size; commit(rows + blank) }, enabled = enabled && rows.size < (if (extras) 50 else 256), modifier = Modifier.testTag("add_entry_${step.id}")) { AppIcon(R.drawable.ic_add); Text(t(if (extras) "add_extra" else "add_key_value")) }
+        Text(t(titleKey ?: if (query) "query_parameters" else if (extras) "extras" else "action_dictionary"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+        TextButton(onClick = { pendingFocus = rows.size; commit(rows + blank) }, enabled = enabled && rows.size < (if (extras) 50 else 256), modifier = Modifier.testTag("add_entry_${step.id}${prefixOverride?.let { "_$it" }.orEmpty()}")) { AppIcon(R.drawable.ic_add); Text(t(if (extras) "add_extra" else "add_key_value")) }
     }
     rows.forEachIndexed { index, entry ->
         val requester = remember(step.id, index) { FocusRequester() }
@@ -420,7 +468,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             VariableTextField("${step.id}:$prefix.$index.value", entry.value, { change(index, entry.copy(value = it)) }, t("value"), variables, referenceNames, enabled = enabled, multiline = true, minLines = 1, modifier = Modifier.weight(1.1f).testTag("${prefix}_value_${step.id}_$index"), focused = { onFocus("$prefix.$index.value") })
             if (index < entries.size) IconButton(onClick = { onFocus(null); commit(entries.filterIndexed { other, _ -> index != other }) }, enabled = enabled) { AppIcon(R.drawable.ic_delete, description = t("remove")) }
         }
-        if (index < entries.size && !query) {
+        if (index < entries.size && typed) {
             var expanded by remember { mutableStateOf(false) }
             Box { TextButton(onClick = { expanded = true }, enabled = enabled) { Text(t(choices.find { it.first == entry.type }?.second ?: "auto_type")) }
                 DropdownMenu(expanded, { expanded = false }) { choices.forEach { (key, label) -> DropdownMenuItem(text = { Text(t(label)) }, onClick = { change(index, entry.copy(type = key)); expanded = false }) } }

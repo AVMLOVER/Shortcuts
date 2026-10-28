@@ -1,0 +1,33 @@
+Shortcuts 1.0.2 Re-Release device verification — 2026-10-28 (Asia/Shanghai)
+
+19 feature/regression checks passed on the delivered signed Release APK.
+1 pre-upgrade backup and 1 post-test preservation check passed.
+Release APK SHA-256: 91b40624b085883b247e711b472198815611c1004e3353102268d71dd48f4f6e
+
+The user confirmed one manual append-to-set edit during testing. All other original files and preferences matched the first snapshot.
+A supplemental snapshot captured the confirmed edit; reinstall and all checks preserved every current file hash and preference.
+Main app was never uninstalled or cleared, and the confirmed edit was not rolled back.
+Screen-awake settings restored. Test fixtures used random IDs and were removed.
+This run covers variables, editor control movement/deletion, copying, undo/redo, tooltips and loopback HTTP/URL actions.
+Earlier image/system-entrypoint checks belong to the original 1.0.2 report and its APK hash.
+
+Passed cases:
+- RereleaseDeviceTest.undoAndRedoRestoreGroupsParametersAndAppearanceWithoutOldResults
+- RereleaseDeviceTest.variableActionsAlwaysAppearAndGetVariableChoosesNamedOrMagicSources
+- RereleaseDeviceTest.removeButtonDeletesTheControlAndItsEntireNestedBody
+- RereleaseDeviceTest.dragTargetsUseTheWholeControlAndSupportAllBranches
+- RereleaseDeviceTest.exportUndoAndRedoShowLongPressTooltips
+- RereleaseDeviceTest.removingASourceMarksItsExistingReferenceAsAnError
+- RereleaseDeviceTest.aBodyActionCanBeDraggedBeforeItsRepeatHeader
+- RereleaseDeviceTest.conditionalCounterReplacementRunsThroughNativeDivision
+- RereleaseDeviceTest.homeCopyIconCreatesAnIndependentMatchingShortcutWithCopySuffix
+- HttpDeviceTest.redirectsPreservePatchBodiesAndStripCredentialsAcrossOrigins
+- HttpDeviceTest.expansionAndHeadersFollowRedirectsAndFallbackWhenHeadIsUnsupported
+- HttpDeviceTest.getPostPutPatchDeleteSendTheConfiguredHeadersAndJson
+- Version102DeviceTest.conditionalRepeatHasFooterComparisonsAndSeparateCount
+- Version102DeviceTest.onlyEnabledOutputSuggestionsAppearInTheVariableBar
+- DeviceRegressionTest.androidIcuTemplatesAndNestedXml
+- DeviceRegressionTest.draggingFromTheLibraryInsertsAnActionAtTheChosenPosition
+- DeviceRegressionTest.draggingAHandleReordersAndPersistsTheActions
+- DeviceRegressionTest.resourceFilesMatchRequestedLanguages
+- DeviceRegressionTest.draggingNearTheEdgeScrollsPastTheOriginalRow

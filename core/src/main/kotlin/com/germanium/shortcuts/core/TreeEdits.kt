@@ -1,17 +1,20 @@
 package com.germanium.shortcuts.core
 
 object TreeEdits {
-    /** Moves a whole action subtree, retaining its branch and variable IDs. Scopes cannot be crossed accidentally. */
+    /** Moves the whole subtree to an explicit insertion point, preserving IDs and rejecting cycles. */
     fun place(steps: List<ActionStep>, id: String, targetId: String, before: Boolean): List<ActionStep> {
         if (id == targetId) return steps
-        val source = steps.find { it.id == id }
-        if (source != null && steps.any { it.id == targetId }) {
-            val remaining = steps.filter { it.id != id }.toMutableList()
-            val target = remaining.indexOfFirst { it.id == targetId }
-            remaining.add(target + if (before) 0 else 1, source)
-            return remaining
-        }
-        return steps.map { step -> step.copy(branches = step.branches.map { it.copy(steps = place(it.steps, id, targetId, before)) }) }
+        val source = pathTo(steps, id)?.lastOrNull() ?: return steps
+        val targetPath = pathTo(steps, targetId) ?: return steps
+        if (targetPath.any { it.id == source.id }) return steps
+        val remaining = remove(steps, id)
+        return if (before) insertBefore(remaining, targetId, source) else insertAfter(remaining, targetId, source)
+    }
+    fun placeInBranch(steps: List<ActionStep>, id: String, owner: String, branch: String): List<ActionStep> {
+        val source = pathTo(steps, id)?.lastOrNull() ?: return steps
+        val ownerPath = pathTo(steps, owner) ?: return steps
+        if (ownerPath.any { it.id == id } || ownerPath.last().branches.none { it.id == branch }) return steps
+        return update(remove(steps, id), owner) { parent -> parent.copy(branches = parent.branches.map { if (it.id == branch) it.copy(steps = it.steps + source) else it }) }
     }
     /** Outputs known to have completed before this action, excluding its unfinished ancestors and sibling branches. */
     fun pathTo(steps: List<ActionStep>, id: String): List<ActionStep>? {
@@ -64,15 +67,23 @@ object TreeEdits {
         step.copy(branches = step.branches.map { if (it.id == branch) it.copy(steps = it.steps + action) else it })
     }
     fun duplicate(step: ActionStep): ActionStep {
-        val ids = allSteps(listOf(step)).associate { it.id to java.util.UUID.randomUUID().toString() }
+        return duplicateSteps(listOf(step)).single()
+    }
+    fun duplicateSteps(steps: List<ActionStep>): List<ActionStep> {
+        val ids = allSteps(steps).associate { it.id to java.util.UUID.randomUUID().toString() }
         fun references(text: String): String = Regex("\\{\\{\\s*@([^{}]+?)\\s*\\}\\}").replace(text) { match ->
             val path = match.groupValues[1].trim(); val source = path.substringBefore('.')
             ids[source]?.let { "{{@$it${path.removePrefix(source)}}}" } ?: match.value
         }
-        fun copy(source: ActionStep): ActionStep = source.copy(id = ids.getValue(source.id), parameters = source.parameters.mapValues { references(it.value) }, branches = source.branches.map { branch ->
+        fun copy(source: ActionStep): ActionStep = source.copy(id = ids.getValue(source.id), parameters = source.parameters.mapValues { (key, value) ->
+            if (source.type == "get_variable" && key == "name" && value.startsWith('@')) {
+                val path = value.drop(1); val id = path.substringBefore('.')
+                ids[id]?.let { "@$it${path.removePrefix(id)}" } ?: value
+            } else references(value)
+        }, branches = source.branches.map { branch ->
             branch.copy(id = if (source.type in listOf("if", "repeat", "repeat_each", "repeat_until")) branch.id else java.util.UUID.randomUUID().toString(), label = references(branch.label), steps = branch.steps.map(::copy))
         })
-        return copy(step)
+        return steps.map(::copy)
     }
     fun copyAfter(steps: List<ActionStep>, id: String): List<ActionStep> = steps.flatMap { step ->
         if (step.id == id) listOf(step, duplicate(step)) else listOf(step.copy(branches = step.branches.map { it.copy(steps = copyAfter(it.steps, id)) }))

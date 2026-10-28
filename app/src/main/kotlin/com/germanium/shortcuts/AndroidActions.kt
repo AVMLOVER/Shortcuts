@@ -66,22 +66,8 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
         val scale = battery?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)?.coerceAtLeast(1) ?: 100
         return Value.Dictionary(mapOf("manufacturer" to Value.Text(android.os.Build.MANUFACTURER), "model" to Value.Text(android.os.Build.MODEL), "sdk" to Value.Number(android.os.Build.VERSION.SDK_INT.toBigDecimal()), "battery" to Value.Number((level * 100 / scale).toBigDecimal())))
     }
-    override suspend fun requestUrl(url: String): String = withContext(Dispatchers.IO) {
-        var next = java.net.URL(url)
-        repeat(6) {
-            if (next.protocol != "https") throw Problem("err_url")
-            val connection = next.openConnection() as java.net.HttpURLConnection
-            connection.connectTimeout = 15000; connection.readTimeout = 15000; connection.instanceFollowRedirects = false
-            try {
-                val code = connection.responseCode
-                if (code in listOf(301, 302, 303, 307, 308)) { next = java.net.URL(next, connection.getHeaderField("Location") ?: throw Problem("err_network")) }
-                else {
-                    if (code !in 200..299) throw Problem("err_network")
-                    return@withContext connection.inputStream.use { it.readBytesBounded(1048576) }.toString(Charsets.UTF_8)
-                }
-            } finally { connection.disconnect() }
-        }; throw Problem("err_network")
-    }
+    override suspend fun requestUrl(url: String) = requestHttp(HttpRequestSpec(url)).let { require(it.status in 200..299) { throw Problem("err_http_status") }; it.text() }
+    override suspend fun requestHttp(request: HttpRequestSpec) = AndroidHttpClient().request(request)
     override suspend fun createCalendarEvent(event: CalendarEventSpec) = system.createEvent(event)
     override suspend fun showResult(title: String, body: String, allowCancel: Boolean) = interactions.ask(Interaction.ResultDialog(title, body, allowCancel)) == "ok"
     override suspend fun viewHtml(html: String) { interactions.ask(Interaction.Html(html)) }

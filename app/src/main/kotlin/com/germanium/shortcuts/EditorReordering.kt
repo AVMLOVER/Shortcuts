@@ -24,7 +24,7 @@ import kotlin.math.roundToInt
 
 internal data class DragScope(val owner: String?, val branch: String?)
 internal data class DragItem(val id: String, val scope: DragScope, val title: String)
-internal data class DragDestination(val source: String, val target: String, val before: Boolean)
+internal data class DragDestination(val source: String, val target: String, val before: Boolean, val branch: String? = null)
 
 /** The viewport owns the gesture so auto scrolling can recycle the source row without cancelling the drag. */
 internal class EditorDragState {
@@ -37,17 +37,32 @@ internal class EditorDragState {
     var deleteBounds by mutableStateOf<Rect?>(null)
     var items: Map<String, DragItem> = emptyMap()
     val handles = mutableMapOf<String, Rect>()
-    fun hit(position: Offset) = handles.entries.firstOrNull { it.value.contains(position) }?.key
+    val beforeBounds = mutableMapOf<String, Rect>()
+    val afterBounds = mutableMapOf<String, Rect>()
+    val branchEnds = mutableMapOf<String, Pair<DragScope, Rect>>()
+    fun hit(position: Offset) = handles.entries.firstOrNull { it.value.contains(position + origin) }?.key
     fun start(id: String, position: Offset) { source = id; update(position) }
     fun update(position: Offset) { pointer = position; refreshTarget() }
     fun overDelete(position: Offset = pointer) = deleteBounds?.contains(position + origin) == true
+    fun destinationAt(position: Offset, sourceId: String = source.orEmpty()): DragDestination? {
+        val rootPosition = position + origin
+        fun allowed(target: String): Boolean {
+            var candidate: String? = target
+            while (candidate != null) { if (candidate == sourceId) return false; candidate = items[candidate]?.scope?.owner }
+            return true
+        }
+        branchEnds.values.firstOrNull { it.second.contains(rootPosition) && it.first.owner?.let(::allowed) == true }?.let {
+            return DragDestination(sourceId, it.first.owner!!, false, it.first.branch)
+        }
+        val candidates = beforeBounds.map { (id, bounds) -> DragDestination(sourceId, id, true) to bounds.top } +
+            afterBounds.map { (id, bounds) -> DragDestination(sourceId, id, false) to bounds.bottom }
+        return candidates.filter { allowed(it.first.target) }.minByOrNull { abs(it.second - rootPosition.y) }?.first
+    }
     fun refreshTarget() {
-        val item = items[source] ?: return
+        if (source !in items) return
         if (overDelete()) { destination = null; return }
-        if (destination != null && gapBounds?.contains(pointer) == true) return
-        val nearest = handles.entries.filter { it.key != item.id && items[it.key]?.scope == item.scope }
-            .minByOrNull { abs(it.value.center.y - pointer.y) }
-        destination = nearest?.let { DragDestination(item.id, it.key, pointer.y < it.value.center.y) }
+        if (destination != null && gapBounds?.contains(pointer + origin) == true) return
+        destination = destinationAt(pointer)
     }
     fun clear() { source = null; destination = null; gapBounds = null; deleteBounds = null }
 }
@@ -115,7 +130,7 @@ internal fun Modifier.editorDragGestures(state: EditorDragState, enabled: Boolea
                     else -> 0f
                 }
                 state.refreshTarget()
-                speed * 1800f * elapsed
+                speed * 2800f * elapsed
             }.let { delta -> if (delta != 0f) list.scrollBy(delta) }
         }
     }
@@ -129,7 +144,7 @@ internal fun Modifier.editorDragGestures(state: EditorDragState, enabled: Boolea
         color = if (state.overDelete()) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer) {
         Column(Modifier.padding(16.dp)) {
             Text(source.title, style = MaterialTheme.typography.titleMedium)
-            Text(if (state.overDelete()) t("drop_to_delete") else if (destination == null) t("drag_scope_hint") else t(if (destination.before) "place_before" else "place_after", state.items[destination.target]?.title.orEmpty()), style = MaterialTheme.typography.bodySmall)
+            Text(if (state.overDelete()) t("drop_to_delete") else if (destination == null) t("drag_scope_hint") else if (destination.branch != null) t("drop_action_here") else t(if (destination.before) "place_before" else "place_after", state.items[destination.target]?.title.orEmpty()), style = MaterialTheme.typography.bodySmall)
         }
     }
 }

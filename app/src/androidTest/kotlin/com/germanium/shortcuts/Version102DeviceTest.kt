@@ -102,11 +102,14 @@ class Version102DeviceTest {
     }
     @Test fun onlyEnabledOutputSuggestionsAppearInTheVariableBar() = runBlocking {
         val first = step("text", "value" to "suggestion"); val second = step("text", "value" to "")
-        withEditor(flow(first,second)) { _, _ ->
+        withEditor(flow(first,second)) { _, model ->
             compose.onNodeWithTag("field_${second.id}_value").performScrollTo().performClick()
             compose.onNodeWithTag("variable_bar_@${first.id}").assertDoesNotExist()
-            compose.onNodeWithTag("variable_bar_toggle_${first.id}").performScrollTo().assertIsOff().performClick()
+            compose.onNodeWithTag("variable_bar_toggle_${first.id}").performScrollTo().assertIsOff().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+            compose.onNodeWithTag("variable_bar_toggle_${first.id}").assertIsOn()
+            assertEquals("true",model.editor.value!!.steps.first().parameters["inVariableBar"])
             compose.onNodeWithTag("field_${second.id}_value").performScrollTo().performClick()
+            compose.onNodeWithTag("field_${second.id}_value").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus)
             compose.onNodeWithTag("editor_variable_bar").performScrollToNode(hasTestTag("variable_bar_@${first.id}"))
             compose.onNodeWithTag("variable_bar_@${first.id}").assertExists().performClick()
         }

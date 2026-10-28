@@ -29,7 +29,7 @@ fun Value.number(): BigDecimal = when (this) {
     is Value.Text -> parseNumber(value)
     is Value.BooleanValue -> throw Problem("err_number")
     is Value.Dictionary -> throw Problem("err_dictionary")
-    is Value.ListValue -> throw Problem("err_number")
+    is Value.ListValue -> throw Problem("err_number_list")
 }
 fun parseNumber(source: String): BigDecimal {
     require(source.length <= 1024) { throw Problem("err_size") }

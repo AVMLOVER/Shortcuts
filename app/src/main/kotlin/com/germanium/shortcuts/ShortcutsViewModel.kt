@@ -14,10 +14,13 @@ data class HomeState(val loading: Boolean = true, val items: List<Shortcut> = em
     val result: RunResult? = null, val error: String? = null, val notice: String? = null, val storageReady: Boolean = false,
     val authorizing: Boolean = false, val saving: Boolean = false, val currentStepId: String? = null,
     val locationEnabled: Boolean = false, val cameraEnabled: Boolean = false, val albumStatus: String = "not_allowed", val overlayEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
-data class EditorState(val original: Shortcut, val name: String = original.name, val steps: List<ActionStep> = original.steps, val icon: String = original.icon, val color: String = original.color, val layoutVersion: Int = 0, val referenceVersion: Int = 0) {
+data class EditorState(val original: Shortcut, val name: String = original.name, val steps: List<ActionStep> = original.steps, val icon: String = original.icon, val color: String = original.color, val layoutVersion: Int = 0, val referenceVersion: Int = 0, val canUndo: Boolean = false, val canRedo: Boolean = false) {
     val dirty get() = name != original.name || steps != original.steps || icon != original.icon || color != original.color
     fun shortcut() = original.copy(name = name.trim(), steps = steps, icon = icon, color = color, updatedAt = maxOf(original.updatedAt, System.currentTimeMillis()))
 }
+private data class EditorSnapshot(val name: String, val steps: List<ActionStep>, val icon: String, val color: String)
+private fun EditorState.snapshot() = EditorSnapshot(name, steps, icon, color)
+
 class ShortcutsViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as ShortcutsApplication
     private val mutable = MutableStateFlow(HomeState())
@@ -27,6 +30,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     var onCloseEditor: (() -> Unit)? = null
     private var mutationJob: Job? = null
     private var draftJob: Job? = null
+    private val history = EditHistory<EditorSnapshot>()
     init {
         reload()
         viewModelScope.launch { app.runs.state.collect { run -> mutable.update { old ->
@@ -59,6 +63,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
                 val original = existing ?: if (template == "dictionary") sample.copy(id = id, name = app.tr("examples"), steps = sample.steps.map { if (it.type == "text") it.copy(parameters = it.parameters + ("value" to app.tr("example_total"))) else it }) else Shortcut(id = id, name = app.tr("new_shortcut"))
                 val draftFile = draftFile(id)
                 val restored = withContext(Dispatchers.IO) { if (draftFile.isFile) XmlCodec().decode(draftFile.inputStream().use { it.readBytesBounded(XmlCodec.MAX_BYTES) }) else null }
+                history.clear()
                 mutableEditor.value = EditorState(original, restored?.name ?: original.name, restored?.steps ?: original.steps, restored?.icon ?: original.icon, restored?.color ?: original.color)
                 mutable.update { it.copy(result = app.runs.state.value.result.takeIf { app.runs.state.value.shortcutId == id }) }; app.diagnostics.trace("editor_open id=$id")
             } catch (e: Exception) { if (e is CancellationException) throw e; report(e) }
@@ -72,13 +77,31 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
             runCatching { val snapshot = withContext(Dispatchers.Default) { draft.shortcut() }; XmlShortcutRepository(File(app.filesDir, "drafts")).save(snapshot) }.onFailure { app.diagnostics.trace("draft_save_failed", it) }
         }
     }
-    fun editName(value: String) { if (value.length <= 200) { mutableEditor.update { it?.copy(name = value) }; persistDraft() } }
-    fun editAppearance(icon: String, color: String) { mutableEditor.update { it?.copy(icon = icon, color = color) }; persistDraft() }
+    private fun changeEditor(previous: EditorState, next: EditorState, group: String? = null) {
+        if (previous.snapshot() == next.snapshot()) return
+        history.record(previous.snapshot(), group)
+        invalidateResult()
+        mutableEditor.value = next.copy(canUndo = history.canUndo, canRedo = history.canRedo)
+        persistDraft()
+    }
+    private fun restoreHistory(redo: Boolean) {
+        if (state.value.runningId != null || state.value.saving) return
+        val draft = editor.value ?: return
+        val snapshot = (if (redo) history.redo(draft.snapshot()) else history.undo(draft.snapshot())) ?: return
+        invalidateResult()
+        mutableEditor.value = draft.copy(name = snapshot.name, steps = snapshot.steps, icon = snapshot.icon, color = snapshot.color,
+            layoutVersion = draft.layoutVersion + 1, referenceVersion = draft.referenceVersion + 1, canUndo = history.canUndo, canRedo = history.canRedo)
+        persistDraft()
+    }
+    fun undo() = restoreHistory(false)
+    fun redo() = restoreHistory(true)
+    fun editName(value: String) { if (value.length <= 200) editor.value?.let { changeEditor(it, it.copy(name = value), "name") } }
+    fun editAppearance(icon: String, color: String) { editor.value?.let { changeEditor(it, it.copy(icon = icon, color = color)) } }
     fun editSteps(steps: List<ActionStep>) {
         try {
             require(allSteps(steps).size <= 1000) { throw Problem("err_size") }
-            invalidateResult()
-            mutableEditor.update { it?.copy(steps = steps, layoutVersion = it.layoutVersion + 1, referenceVersion = it.referenceVersion + 1) }; persistDraft()
+            val draft = editor.value ?: return
+            changeEditor(draft, draft.copy(steps = steps, layoutVersion = draft.layoutVersion + 1, referenceVersion = draft.referenceVersion + 1))
         } catch (e: Exception) { report(if (e is Problem) e else Problem("err_size")) }
     }
     fun update(step: ActionStep) {
@@ -88,8 +111,9 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         val updated = TreeEdits.update(draft.steps, step.id) { step }
         if (previous.branches === step.branches && previous.enabled == step.enabled && previous.type == step.type) {
             val renamed = previous.parameters["name"] != step.parameters["name"] || previous.parameters["resultVariable"] != step.parameters["resultVariable"]
-            mutableEditor.value = draft.copy(steps = updated, referenceVersion = draft.referenceVersion + if (renamed) 1 else 0)
-            persistDraft()
+            val changedFields = (previous.parameters.keys + step.parameters.keys).filter { previous.parameters[it] != step.parameters[it] }
+            changeEditor(draft, draft.copy(steps = updated, referenceVersion = draft.referenceVersion + if (renamed) 1 else 0),
+                changedFields.singleOrNull()?.let { "${step.id}:$it" })
         } else editSteps(updated)
     }
     private fun invalidateResult() {
@@ -111,7 +135,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     }
     fun remove(id: String) { editor.value?.let { editSteps(TreeEdits.remove(it.steps, id)) } }
     fun move(id: String, delta: Int) { editor.value?.let { editSteps(TreeEdits.move(it.steps, id, delta)) } }
-    fun place(id: String, targetId: String, before: Boolean) { editor.value?.let { editSteps(TreeEdits.place(it.steps, id, targetId, before)) } }
+    fun place(id: String, targetId: String, before: Boolean, branch: String? = null) { editor.value?.let { editSteps(if (branch == null) TreeEdits.place(it.steps, id, targetId, before) else TreeEdits.placeInBranch(it.steps, id, targetId, branch)) } }
     fun add(type: String, owner: String?, branch: String?, uri: String? = null, displayName: String? = null, anchor: String? = null, before: Boolean = false) {
         val definition = ActionCatalog.find(type) ?: return
         var step = definition.create(app)
@@ -164,7 +188,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
             }
             return
         }
-        try { val shortcut = draft.shortcut(); app.engine.validate(shortcut); save(shortcut) { if (close) closeEditor() else mutableEditor.value = EditorState(shortcut) }
+        try { val shortcut = draft.shortcut(); app.engine.validate(shortcut); save(shortcut) { if (close) closeEditor() else { history.clear(); mutableEditor.value = EditorState(shortcut) } }
         } catch (e: Exception) { report(e) }
     }
     fun runEditor() { try { editor.value?.shortcut()?.let { run(it) } } catch (e: Exception) { report(e) } }
@@ -190,6 +214,13 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         app.runs.forget(id)
         val items = app.shortcuts.list()
         mutable.update { if (it.resultShortcutId == id) it.copy(items = items, result = null, resultShortcutId = null, currentStepId = null, error = null, notice = null) else it.copy(items = items) }
+    }
+    fun duplicate(shortcut: Shortcut) = mutate {
+        val original = app.shortcuts.list().firstOrNull { it.id == shortcut.id } ?: return@mutate
+        app.shortcuts.save(ShortcutCopies.duplicate(original))
+        val items = app.shortcuts.list()
+        mutable.update { it.copy(items = items) }
+        ShortcutWidgets.updateAll(app)
     }
     fun selectMode(mode: ExecutionMode) = mutate { val settings = state.value.settings.copy(mode = mode); app.settings.save(settings); mutable.update { it.copy(settings = settings) }; refreshPrivileges() }
     fun saveFolder(folder: ShortcutFolder) = mutate { app.folders.save(folder); val folders = app.folders.list(); mutable.update { it.copy(folders = folders) } }

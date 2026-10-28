@@ -44,7 +44,8 @@ object ActionCatalog {
         ActionDefinition("output", "basic", "↗", listOf(value)),
         ActionDefinition("quick_look", "basic", "◉", listOf(value)),
         ActionDefinition("create_variable", "variables", "x", listOf(ActionField("name", "variable_name", "value"), valueType, value)),
-        ActionDefinition("get_variable", "variables", "x↓", listOf(ActionField("name", "variable_name", "value"))),
+        ActionDefinition("set_variable", "variables", "x=", listOf(ActionField("name", "variable_name", "value"), valueType, value)),
+        ActionDefinition("get_variable", "variables", "x↓", listOf(ActionField("name", "variable_name", "input"))),
         ActionDefinition("append_variable", "variables", "x+", listOf(ActionField("name", "variable_name", "value"), value)),
         ActionDefinition("ask_input", "basic", "?…", listOf(ActionField("title", "title"), ActionField("prompt", "prompt"), ActionField("initial", "initial"), ActionField("inputType", "input_type", "text", choices = listOf("text" to "text_type", "number" to "number_type", "date" to "date_type")))),
         ActionDefinition("calculate", "math", "=", listOf(ActionField("left", "left", "{{input}}"), ActionField("operation", "math_operator", "+", choices = listOf("+", "-", "*", "/", "%", "^", "mod", "sin", "cos", "tan", "asin", "acos", "atan", "abs", "sqrt", "cbrt", "root", "round", "min", "max", "gcd", "lcm").map { it to if (it == "round") "action_round_number" else it }), ActionField("right", "right", "1"), ActionField("rounding", "rounding_mode", "nearest", choices = listOf("nearest" to "round_nearest", "up" to "round_up", "down" to "round_down")), ActionField("digits", "rounding_digits", "0"))),
@@ -86,7 +87,14 @@ object ActionCatalog {
         ActionDefinition("random_number", "math", "⚄", listOf(ActionField("minimum", "minimum", "1"), ActionField("maximum", "maximum", "100"))),
         ActionDefinition("generate_uuid", "basic", "ID", listOf(ActionField("seed", "seed", "{{input}}"))),
         ActionDefinition("hash_text", "encoding", "#", ContentActionCatalog.hashFields),
-        ActionDefinition("get_url", "web", "↓", listOf(ActionField("url", "url", "https://"))),
+        ActionDefinition("get_url", "web", "↓", listOf(ActionField("url", "url", "https://"),
+            ActionField("method", "request_method", "GET", choices = HttpActions.methods.map { it to it } + listOf("ask" to "ask_each_time", "variable" to "variables")),
+            ActionField("customMethod", "request_method", "GET"),
+            ActionField("bodyType", "request_body_type", "json", choices = listOf("json" to "http_json", "form" to "http_form", "file" to "file_type", "text" to "text_type")),
+            ActionField("body", "http_body_text", "", true), ActionField("bodyFile", "http_body_file", "{{input}}"), ActionField("contentType", "http_content_type"))),
+        ActionDefinition("expand_url", "web", "↗", listOf(ActionField("url", "url", "{{input}}"))),
+        ActionDefinition("get_url_headers", "web", "⇣", listOf(ActionField("url", "url", "{{input}}"))),
+        ActionDefinition("get_url_component", "web", "⌘", listOf(ActionField("url", "url", "{{input}}"), ActionField("component", "url_component", "host", choices = listOf("scheme", "user", "password", "host", "port", "path", "query", "fragment", "all").map { it to "url_part_$it" }))),
         ActionDefinition("get_html", "web", "</>", listOf(ActionField("url", "url", "https://"))),
         ActionDefinition("view_html", "web", "</>", listOf(ActionField("html", "html_source", "{{input}}", true))),
         ActionDefinition("open_url", "web", "↗", listOf(ActionField("url", "url", "https://"))),
@@ -101,7 +109,7 @@ object ActionCatalog {
         }
     private fun contextFreeMenuTitle() = ""
     private val byType = all.associateBy { it.type }
-    fun find(type: String) = byType[if (type == "set_variable") "create_variable" else type]
+    fun find(type: String) = byType[type]
     fun forStep(step: ActionStep): ActionDefinition? {
         val definition = if (step.type == "calculate" && "expression" in step.parameters) byType["calculate_expression"] else find(step.type)
         return if (step.type == "join_text" && "separatorType" !in step.parameters) definition?.copy(fields = definition.fields.map { if (it.key == "separatorType") it.copy(initial = "custom") else it }) else definition

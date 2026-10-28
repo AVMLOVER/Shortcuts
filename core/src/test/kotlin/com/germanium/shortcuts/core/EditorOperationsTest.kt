@@ -18,12 +18,14 @@ class EditorOperationsTest {
         val result = TreeEdits.place(listOf(control, action("after")), control.id, "after", false)
         assertEquals(control, result.last()); assertEquals("child", result.last().branches.single().steps.single().id)
     }
-    @Test fun nestedOrderingStaysWithinTheSameBranch() {
+    @Test fun nestedOrderingSupportsExplicitMovesAcrossBranches() {
         val conditional = ActionStep(type = "if", branches = listOf(ActionBranch("then", steps = listOf(action("a"), action("b"), action("c"))), ActionBranch("else", steps = listOf(action("other")))))
         val reordered = TreeEdits.place(listOf(conditional), "a", "c", false).single()
         assertEquals(listOf("b", "c", "a"), reordered.branches.first().steps.map { it.id })
         assertEquals(conditional.branches.last(), reordered.branches.last())
-        assertEquals(listOf(conditional), TreeEdits.place(listOf(conditional), "a", "other", false))
+        val moved = TreeEdits.place(listOf(conditional), "a", "other", false).single()
+        assertEquals(listOf("b", "c"), moved.branches.first().steps.map { it.id })
+        assertEquals(listOf("other", "a"), moved.branches.last().steps.map { it.id })
         assertEquals(listOf(conditional), TreeEdits.place(listOf(conditional), conditional.id, "a", false))
     }
     @Test fun outputsInsideABranchExcludeIncompleteAncestorsAndOtherBranches() {
