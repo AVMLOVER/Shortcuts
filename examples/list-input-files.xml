@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='utf-8'?>
+<shortcut version="1" id="list-input-files" createdAt="1793145600000" updatedAt="1793145600000">
+  <name>List, input and files</name>
+  <steps>
+    <action id="items" type="list" enabled="true">
+      <parameter key="items">Coffee
+Tea
+Water</parameter>
+    </action>
+    <action id="choice" type="choose_from_list" enabled="true">
+      <parameter key="title">Choose an item</parameter>
+      <parameter key="resultVariable">choice</parameter>
+    </action>
+    <action id="quantity" type="ask_input" enabled="true">
+      <parameter key="title">Quantity</parameter>
+      <parameter key="prompt">Enter quantity</parameter>
+      <parameter key="initial">1</parameter>
+      <parameter key="inputType">number</parameter>
+      <parameter key="resultVariable">quantity</parameter>
+    </action>
+    <action id="total" type="calculate_expression" enabled="true">
+      <parameter key="expression">quantity * 3.5</parameter>
+      <parameter key="resultVariable">total</parameter>
+    </action>
+    <action id="folder" type="create_folder" enabled="true">
+      <parameter key="folder">Receipts</parameter>
+    </action>
+    <action id="write" type="write_file" enabled="true">
+      <parameter key="folder">Receipts</parameter>
+      <parameter key="filename">receipt.txt</parameter>
+      <parameter key="content">{{choice}} x {{quantity}}
+Total: {{total}}</parameter>
+    </action>
+    <action id="read" type="read_file" enabled="true">
+      <parameter key="folder">Receipts</parameter>
+      <parameter key="filename">{{input}}</parameter>
+    </action>
+    <action id="preview" type="quick_look" enabled="true">
+      <parameter key="value">{{input}}</parameter>
+    </action>
+  </steps>
+</shortcut>

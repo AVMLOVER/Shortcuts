@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shortcut version="1" id="dictionary-calculation" createdAt="1793100000000" updatedAt="1793100000000">
+  <name>从字典计算总价</name>
+  <steps>
+    <action id="dict" type="dictionary" enabled="true">
+      <parameter key="entry.0.key">单价</parameter>
+      <parameter key="entry.0.type">number</parameter>
+      <parameter key="entry.0.value">18.5</parameter>
+      <parameter key="entry.1.key">数量</parameter>
+      <parameter key="entry.1.type">number</parameter>
+      <parameter key="entry.1.value">2</parameter>
+      <parameter key="resultVariable">订单</parameter>
+    </action>
+    <action id="price" type="get_dictionary_value" enabled="true">
+      <parameter key="dictionary">{{订单}}</parameter>
+      <parameter key="key">单价</parameter>
+      <parameter key="resultVariable">单价</parameter>
+    </action>
+    <action id="quantity" type="get_dictionary_value" enabled="true">
+      <parameter key="dictionary">{{订单}}</parameter>
+      <parameter key="key">数量</parameter>
+      <parameter key="resultVariable">数量</parameter>
+    </action>
+    <action id="calculate" type="calculate" enabled="true">
+      <parameter key="expression">单价 * 数量</parameter>
+      <parameter key="resultVariable">总价</parameter>
+    </action>
+    <action id="output" type="output" enabled="true">
+      <parameter key="value">合计 {{总价}} 元</parameter>
+    </action>
+  </steps>
+</shortcut>

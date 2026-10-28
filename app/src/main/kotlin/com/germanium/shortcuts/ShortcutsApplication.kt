@@ -1,0 +1,52 @@
+package com.germanium.shortcuts
+
+import android.app.Application
+import android.app.Activity
+import android.os.Bundle
+import java.lang.ref.WeakReference
+import com.germanium.shortcuts.core.ShortcutEngine
+import com.germanium.shortcuts.core.builtInActions
+import com.germanium.shortcuts.core.XmlSettingsRepository
+import com.germanium.shortcuts.core.XmlShortcutRepository
+import java.io.File
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collect
+
+class ShortcutsApplication : Application() {
+    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate)
+    val interactions = Interactions()
+    val diagnostics by lazy { Diagnostics(this) }
+    val shortcuts by lazy { XmlShortcutRepository(File(filesDir, "shortcuts")) }
+    val folders by lazy { com.germanium.shortcuts.core.FolderRepository(File(filesDir, "folders")) }
+    val settings by lazy { XmlSettingsRepository(File(filesDir, "settings.xml")) }
+    val automations by lazy { com.germanium.shortcuts.core.AutomationRepository(File(filesDir, "automations")) }
+    val workspace by lazy { com.germanium.shortcuts.core.WorkspaceFiles(File(getExternalFilesDir(null) ?: filesDir, "workspace")) }
+    val runs by lazy { RunCoordinator(this) }
+    val monitorRunning = kotlinx.coroutines.flow.MutableStateFlow(false)
+    @Volatile private var resumedActivity: WeakReference<Activity>? = null
+    fun foreground() = resumedActivity?.get()
+    val actions by lazy { AndroidActions(this, interactions) { resumedActivity?.get() } }
+    val engine by lazy { ShortcutEngine(builtInActions(actions), actions) }
+    val privileges by lazy { PrivilegeController() }
+    override fun onCreate() {
+        super.onCreate()
+        diagnostics.install()
+        com.germanium.shortcuts.core.Calculator.nativeEvaluate = NativeMath::evaluate
+        scope.launch { runs.state.map { it.runningId }.distinctUntilChanged().collect { id ->
+            try { ShortcutWidgets.updateAll(this@ShortcutsApplication, id) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; diagnostics.trace("widget_state_failed", e) }
+        } }
+        interactions.onPending = { if (foreground() == null) showInteractionNotification(this) }
+        interactions.onResolved = { getSystemService(android.app.NotificationManager::class.java).cancel(2002) }
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) { resumedActivity = WeakReference(activity) }
+            override fun onActivityPaused(activity: Activity) { if (resumedActivity?.get() === activity) resumedActivity = null }
+            override fun onActivityDestroyed(activity: Activity) { if (resumedActivity?.get() === activity) resumedActivity = null }
+            override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit
+            override fun onActivityStarted(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) = Unit
+        })
+    }
+}

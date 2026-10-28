@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shortcut version="1" id="hello" createdAt="1793100000000" updatedAt="1793100000000">
+  <name>我的第一个快捷指令</name>
+  <steps>
+    <action id="text-1" type="text" enabled="true">
+      <parameter key="value">你好，Shortcuts！</parameter>
+    </action>
+    <action id="delay-1" type="delay" enabled="true">
+      <parameter key="milliseconds">300</parameter>
+    </action>
+    <action id="append-1" type="append_text" enabled="true">
+      <parameter key="value">&#10;底层执行引擎已准备好。</parameter>
+    </action>
+    <action id="output-1" type="output" enabled="true" />
+  </steps>
+</shortcut>

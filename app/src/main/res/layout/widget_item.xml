@@ -1,0 +1,8 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_item" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="2dp">
+<FrameLayout android:layout_width="52dp" android:layout_height="52dp">
+<ImageView android:id="@+id/widget_icon" android:layout_width="48dp" android:layout_height="48dp" android:layout_gravity="center" android:scaleType="fitCenter" android:importantForAccessibility="no" />
+<ImageView android:id="@+id/widget_idle_ring" android:layout_width="14dp" android:layout_height="14dp" android:layout_gravity="top|end" android:src="@drawable/widget_ring" android:importantForAccessibility="no" />
+<ProgressBar android:id="@+id/widget_progress" android:layout_width="16dp" android:layout_height="16dp" android:layout_gravity="top|end" android:indeterminate="true" android:indeterminateTint="@color/widget_accent" android:visibility="gone" />
+</FrameLayout>
+<TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textSize="11sp" android:textColor="@color/widget_on_surface" android:gravity="center" />
+</LinearLayout>

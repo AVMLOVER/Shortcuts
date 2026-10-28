@@ -1,0 +1,20 @@
+[package]
+name = "shortcuts_math"
+version = "0.7.0"
+edition = "2021"
+license = "GPL-3.0-only"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bigdecimal = "=0.4.11"
+num-bigint = "=0.4.6"
+num-integer = "=0.1.46"
+num-traits = "=0.2.19"
+jni = "=0.21.1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = "debuginfo"
