@@ -26,6 +26,7 @@ class ShortcutsApplication : Application() {
     val workspace by lazy { com.germanium.shortcuts.core.WorkspaceFiles(File(getExternalFilesDir(null) ?: filesDir, "workspace")) }
     val runs by lazy { RunCoordinator(this) }
     val monitorRunning = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val defaultShortcutNames=com.germanium.shortcuts.core.DefaultShortcutNames()
     @Volatile var widgetInteractionHandler: ((Interaction) -> Boolean)? = null
     @Volatile var widgetInteractionResolved: (() -> Unit)? = null
     private var widgetOverlayAllowed = false

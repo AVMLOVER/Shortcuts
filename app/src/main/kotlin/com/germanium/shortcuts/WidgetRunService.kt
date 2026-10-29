@@ -82,7 +82,7 @@ class WidgetRunService : Service() {
                 run.join()
                 val state = app.runs.state.value
                 if (state.shortcutId == id) {
-                    val output=(state.error ?: state.notice)?.let{Value.Text(it)} ?: state.previewValue ?: state.result?.outputValue ?: Value.Text("")
+                    val output=InterfacePolicies.widgetResult(state.widgetPresented,state.previewValue,state.result,state.error,state.notice) ?: return@launch
                     val shown=showOutput(output,settings.theme)
                     val attachment=withContext(Dispatchers.IO){DisplayContent.items(output).any{it is Value.Text&&AndroidContent(app).isFile(it.value)}}
                     if(shown&&attachment)awaitCancellation()

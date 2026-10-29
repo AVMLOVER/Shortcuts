@@ -89,7 +89,7 @@ import kotlinx.coroutines.*
             }
             Text(t("trigger"), style = MaterialTheme.typography.titleMedium)
             TriggerKind.entries.forEach { kind -> Row(verticalAlignment = Alignment.CenterVertically) { val available = kind != TriggerKind.NFC || nfcAvailable; RadioButton(trigger == kind, { trigger = kind }, enabled = available); Text(t("trigger_${kind.name.lowercase(java.util.Locale.ROOT)}"), color = if (available) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) } }
-            if (trigger == TriggerKind.TIME) OutlinedTextField(time, { time = it }, label = { Text(t("time_of_day")) }, singleLine = true)
+            if (trigger == TriggerKind.TIME) AutomationTimePicker(time){time=it}
             if (trigger == TriggerKind.BATTERY_BELOW) OutlinedTextField(level, { level = it }, label = { Text(t("battery_level")) }, singleLine = true)
             if (trigger == TriggerKind.NFC) {
                 Text(tagId.ifEmpty { t("nfc_scan_hint") })

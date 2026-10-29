@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 @Composable private fun HomeScreen(activity: MainActivity, model: ShortcutsViewModel, state: HomeState) {
+    val adaptive=rememberAdaptiveLayout()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val shortcutScroll = rememberLazyListState()
     val automationScroll = rememberLazyListState()
@@ -100,7 +101,9 @@ class MainActivity : ComponentActivity() {
                 FilledTonalButton(onClick = { addingFolder = true }, modifier = Modifier.fillMaxWidth()) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("new_folder")) }
             }
         }
-    }) { Scaffold(contentWindowInsets = shortcutsContentInsets(), topBar = {
+    }) { Row(Modifier.fillMaxSize()) {
+    if(adaptive.policy.navigationRail)FloatingNavigationRail(tab){tab=it}
+    Scaffold(modifier=Modifier.weight(1f),contentWindowInsets = shortcutsContentInsets(), topBar = {
         Surface(color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).padding(horizontal = 16.dp).heightIn(min = 56.dp).testTag("home_top_bar"), verticalAlignment = Alignment.CenterVertically) {
                 if (tab == 0 && searching) ShortcutSearchField(searchText, ::closeSearch, Modifier.weight(1f))
@@ -114,7 +117,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }, bottomBar = {
-        FloatingNavigation(tab) { tab = it }
+        if(!adaptive.policy.navigationRail)FloatingNavigation(tab) { tab = it }
     }, floatingActionButton = {
         if (tab == 0 && state.storageReady && !state.saving && state.runningId == null) FloatingActionButton(onClick = { openEditor(activity) }, shape = RoundedCornerShape(22.dp), modifier = Modifier.size(64.dp).testTag("create_shortcut")) { AppIcon(R.drawable.ic_add, description = t("new_shortcut")) }
     }) { padding ->
@@ -159,7 +162,7 @@ class MainActivity : ComponentActivity() {
                 2 -> item { SettingsPanel(app, model, state, transfers, ::launchRequest) { scope.launch { logs = withContext(Dispatchers.IO) { app.diagnostics.read() } } } }
             }
         }
-    } }
+    } } }
     BackHandler(drawer.currentValue != DrawerValue.Closed || drawer.targetValue != DrawerValue.Closed) { scope.launch { drawer.close() } }
     if (addingFolder || editingFolder != null) FolderEditor(editingFolder, { addingFolder = false; editingFolder = null }, model::saveFolder)
     moveShortcut?.let { shortcut -> MoveToFolderSheet(shortcut, state.folders, { moveShortcut = null }) { model.moveToFolder(shortcut, it) } }

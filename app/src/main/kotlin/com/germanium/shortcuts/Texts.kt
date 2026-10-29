@@ -9,6 +9,17 @@ import com.germanium.shortcuts.core.FutureShortcutVersion
 
 object Texts {
     val ids: Map<String, Int> = mapOf(
+        "more" to R.string.ui_more,
+        "editor_pane_side" to R.string.ui_editor_pane_side,
+        "pane_left" to R.string.ui_pane_left,
+        "pane_right" to R.string.ui_pane_right,
+        "editor_pane_hint" to R.string.ui_editor_pane_hint,
+        "accessibility_permission" to R.string.ui_accessibility_permission,
+        "accessibility_service_name" to R.string.ui_accessibility_service_name,
+        "accessibility_description" to R.string.ui_accessibility_description,
+        "select_time" to R.string.ui_select_time,
+        "time_keyboard" to R.string.ui_time_keyboard,
+        "time_dial" to R.string.ui_time_dial,
         "document_preview" to R.string.ui_document_preview,
         "document_page" to R.string.ui_document_page,
         "previous_page" to R.string.ui_previous_page,

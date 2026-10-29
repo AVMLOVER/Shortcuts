@@ -131,7 +131,8 @@ class Version104DeviceTest {
             compose.waitUntil(15000){compose.onAllNodesWithText("Verify104 result").fetchSemanticsNodes().isNotEmpty()}
             compose.onNodeWithTag("widget_overlay_confirm").performClick()
             compose.waitUntil(15000){app.runs.state.value.shortcutId==source.id&&app.runs.state.value.runningId==null}
-            compose.onNodeWithText("desktop result").assertExists();assertNull(app.foreground())
+            compose.waitUntil(15000){runCatching{compose.onAllNodesWithTag("widget_overlay").fetchSemanticsNodes().isEmpty()}.getOrDefault(true)}
+            compose.onNodeWithText("desktop result").assertDoesNotExist();assertNull(app.foreground())
             onMain{view.findViewById<android.view.View>(R.id.widget_item).performClick()}
             compose.waitUntil(15000){runCatching{compose.onAllNodesWithTag("widget_overlay_input").fetchSemanticsNodes().isNotEmpty()}.getOrDefault(false)}
             compose.onNodeWithText(app.tr("cancel")).performClick()

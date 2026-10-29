@@ -795,4 +795,15 @@
     <string name="ui_document_external">Dieses Format mit einer anderen App öffnen.</string>
     <string name="ui_open_document">Dokument öffnen</string>
     <string name="ui_err_open_document">Das Dokument kann nicht geöffnet werden. Zugriff prüfen oder eine passende App installieren.</string>
+    <string name="ui_more">Mehr</string>
+    <string name="ui_editor_pane_side">Position der Aktionsleiste</string>
+    <string name="ui_pane_left">Links</string>
+    <string name="ui_pane_right">Rechts</string>
+    <string name="ui_editor_pane_hint">Für Tablets und faltbare Geräte; standardmäßig links. Schmale Fenster verwenden das untere Bedienfeld.</string>
+    <string name="ui_accessibility_permission">Bedienungshilfen</string>
+    <string name="ui_accessibility_service_name">Shortcuts Automatisierungshilfe</string>
+    <string name="ui_accessibility_description">Automatisierungen können diese Bedienungshilfe nutzen, damit Shortcuts im Hintergrund verfügbar bleibt. Sie liest keine Bildschirminhalte und führt keine Gesten aus. Android kann die App weiterhin beenden.</string>
+    <string name="ui_select_time">Zeit auswählen</string>
+    <string name="ui_time_keyboard">Tastatureingabe</string>
+    <string name="ui_time_dial">Zifferblatt verwenden</string>
 </resources>

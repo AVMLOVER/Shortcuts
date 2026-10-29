@@ -105,6 +105,7 @@ class Version102DeviceTest {
         withEditor(flow(first,second)) { _, model ->
             compose.onNodeWithTag("field_${second.id}_value").performScrollTo().performClick()
             compose.onNodeWithTag("variable_bar_@${first.id}").assertDoesNotExist()
+            compose.onNodeWithTag("action_more_${first.id}").performScrollTo().performClick()
             compose.onNodeWithTag("variable_bar_toggle_${first.id}").performScrollTo().assertIsOff().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
             compose.onNodeWithTag("variable_bar_toggle_${first.id}").assertIsOn()
             assertEquals("true",model.editor.value!!.steps.first().parameters["inVariableBar"])

@@ -795,4 +795,15 @@
     <string name="ui_document_external">この形式はほかのアプリで開けます。</string>
     <string name="ui_open_document">書類を開く</string>
     <string name="ui_err_open_document">書類を開けません。アクセス権を確認するか、対応アプリをインストールしてください。</string>
+    <string name="ui_more">その他</string>
+    <string name="ui_editor_pane_side">アクションパネルの位置</string>
+    <string name="ui_pane_left">左側</string>
+    <string name="ui_pane_right">右側</string>
+    <string name="ui_editor_pane_hint">タブレットと折りたたみ端末用です。既定は左側で、狭いウィンドウでは下部パネルを使います。</string>
+    <string name="ui_accessibility_permission">ユーザー補助</string>
+    <string name="ui_accessibility_service_name">Shortcuts 自動化サポート</string>
+    <string name="ui_accessibility_description">自動化フローは、このユーザー補助サービスで Shortcuts のバックグラウンド動作を補助できます。画面内容の読み取りやジェスチャーは行いません。システムがアプリを終了する場合はあります。</string>
+    <string name="ui_select_time">時刻を選択</string>
+    <string name="ui_time_keyboard">キーボード入力</string>
+    <string name="ui_time_dial">文字盤を使用</string>
 </resources>

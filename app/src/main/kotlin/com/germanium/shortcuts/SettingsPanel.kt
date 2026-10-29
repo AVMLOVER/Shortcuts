@@ -25,6 +25,7 @@ import com.germanium.shortcuts.core.*
 @Composable internal fun SettingsPanel(app: ShortcutsApplication, model: ShortcutsViewModel, state: HomeState, transfers: TransferTools,
     launch: (Interaction) -> Unit, viewLogs: () -> Unit) {
     val enabled = state.storageReady && !state.saving
+    val adaptive=rememberAdaptiveLayout()
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsGroup("appearance", "appearance_settings", R.drawable.ic_glyph_star, initiallyOpen = true) {
             Text(t("theme"), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
@@ -33,6 +34,13 @@ import com.germanium.shortcuts.core.*
                     modifier = Modifier.weight(1f).height(64.dp).testTag("theme_${theme.name}")) { Text(t(when (theme) { ThemeMode.SYSTEM -> "theme_system"; ThemeMode.LIGHT -> "theme_light"; ThemeMode.DARK -> "theme_dark" }), minLines = 2, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelMedium) } }
             }
             if (Build.VERSION.SDK_INT >= 33) SettingsRow("locale_settings", R.drawable.ic_glyph_globe, click = { launch(Interaction.Launch(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.parse("package:${app.packageName}")))) })
+            if(adaptive.policy.largeDevice){
+                Text(t("editor_pane_side"),style=MaterialTheme.typography.titleSmall,modifier=Modifier.padding(horizontal=20.dp,vertical=8.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)){
+                    EditorPaneSide.entries.forEachIndexed{index,side->SegmentedButton(state.editorPaneSide==side,{model.selectEditorPaneSide(side)},shape=SegmentedButtonDefaults.itemShape(index,2),enabled=enabled,modifier=Modifier.weight(1f).height(52.dp).testTag("editor_pane_${side.name}")){Text(t(if(side==EditorPaneSide.LEFT)"pane_left" else "pane_right"))}}
+                }
+                Text(t("editor_pane_hint"),style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(horizontal=20.dp,vertical=8.dp))
+            }
         }
         SettingsGroup("execution", "execution_mode", R.drawable.ic_glyph_code) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(16.dp)) {
@@ -50,6 +58,7 @@ import com.germanium.shortcuts.core.*
             Text(t("angle_unit_hint"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         }
         SettingsGroup("permissions", "permissions", R.drawable.ic_glyph_check) {
+            SettingsRow("accessibility_permission",R.drawable.ic_automation,status=t(if(state.accessibilityEnabled)"allowed" else "not_allowed"),detail=t("accessibility_description"),click={launch(Interaction.Launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)))})
             SettingsRow("notification_permission", R.drawable.ic_glyph_chat, status = t(if (state.notificationsEnabled) "allowed" else "not_allowed"), click = {
                 if (Build.VERSION.SDK_INT >= 33) launch(Interaction.Permissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS))) else launch(Interaction.Launch(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, app.packageName)))
             })

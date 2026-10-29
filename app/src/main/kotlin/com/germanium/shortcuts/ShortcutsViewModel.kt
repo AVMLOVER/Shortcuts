@@ -12,7 +12,7 @@ import java.util.UUID
 data class HomeState(val loading: Boolean = true, val items: List<Shortcut> = emptyList(), val settings: AppSettings = AppSettings(),
     val privilege: PrivilegeStatus = PrivilegeStatus(ExecutionMode.STANDARD, true, "standard_ready"), val runningId: String? = null,
     val result: RunResult? = null, val error: String? = null, val notice: String? = null, val storageReady: Boolean = false,
-    val authorizing: Boolean = false, val saving: Boolean = false, val currentStepId: String? = null,
+    val authorizing: Boolean = false, val saving: Boolean = false, val currentStepId: String? = null, val editorPaneSide:EditorPaneSide=EditorPaneSide.LEFT, val accessibilityEnabled:Boolean=false,
     val locationEnabled: Boolean = false, val cameraEnabled: Boolean = false, val calendarReadEnabled: Boolean = false, val calendarWriteEnabled: Boolean = false, val albumStatus: String = "not_allowed", val overlayEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
 data class EditorState(val original: Shortcut, val name: String = original.name, val steps: List<ActionStep> = original.steps, val icon: String = original.icon, val color: String = original.color, val layoutVersion: Int = 0, val referenceVersion: Int = 0, val canUndo: Boolean = false, val canRedo: Boolean = false) {
     val dirty get() = name != original.name || steps != original.steps || icon != original.icon || color != original.color
@@ -30,6 +30,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     var onCloseEditor: (() -> Unit)? = null
     private var mutationJob: Job? = null
     private var draftJob: Job? = null
+    private var reservedNameId:String?=null
     private val history = EditHistory<EditorSnapshot>()
     init {
         reload()
@@ -48,7 +49,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     fun reload() {
         if (mutationJob?.isActive == true) return
         mutationJob = viewModelScope.launch {
-            try { val items = app.shortcuts.list(); val folders = app.folders.list(); val settings = app.settings.load(); mutable.update { it.copy(items = items, folders = folders, settings = settings, storageReady = true,
+            try { val items = app.shortcuts.list(); val folders = app.folders.list(); val settings = app.settings.load(); mutable.update { it.copy(items = items, folders = folders, settings = settings, storageReady = true, editorPaneSide=EditorPanePreferences.load(app),accessibilityEnabled=AutomationAccessibilityService.enabled(app),
                 locationEnabled = AndroidLocation.hasPermission(app), cameraEnabled = MediaPermissions.camera(app), calendarReadEnabled = MediaPermissions.granted(app, android.Manifest.permission.READ_CALENDAR), calendarWriteEnabled = MediaPermissions.granted(app, android.Manifest.permission.WRITE_CALENDAR), albumStatus = MediaPermissions.albumStatus(app), overlayEnabled = android.provider.Settings.canDrawOverlays(app), notificationsEnabled = androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled(), batteryExempt = app.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName)) }; refreshPrivileges()
             } catch (e: Exception) { if (e is CancellationException) throw e; report(e); mutable.update { it.copy(storageReady = false) }
             } finally { mutable.update { it.copy(loading = false) } }
@@ -58,9 +59,11 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         if (editor.value != null) return
         viewModelScope.launch {
             try {
-                val existing = app.shortcuts.list().find { it.id == id }
+                val items=app.shortcuts.list()
+                val existing = items.find { it.id == id }
                 val sample = WorkflowExamples.dictionaryCalculation()
-                val original = existing ?: if (template == "dictionary") sample.copy(id = id, uuid = stableShortcutUuid(id), name = app.tr("examples"), steps = sample.steps.map { if (it.type == "text") it.copy(parameters = it.parameters + ("value" to app.tr("example_total"))) else it }) else Shortcut(id = id, name = app.tr("new_shortcut"))
+                val defaultName=if(existing==null)app.defaultShortcutNames.reserve(id,app.tr(if(template=="dictionary")"examples" else "new_shortcut"),items.map{it.name}).also{reservedNameId=id}else existing.name
+                val original = existing ?: if (template == "dictionary") sample.copy(id = id, uuid = stableShortcutUuid(id), name = defaultName, steps = sample.steps.map { if (it.type == "text") it.copy(parameters = it.parameters + ("value" to app.tr("example_total"))) else it }) else Shortcut(id = id, name = defaultName)
                 val draftFile = draftFile(id)
                 val restored = withContext(Dispatchers.IO) { if (draftFile.isFile) XmlCodec().decode(draftFile.inputStream().use { it.readBytesBounded(XmlCodec.MAX_BYTES) }) else null }
                 history.clear()
@@ -171,6 +174,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             if (app.runs.state.value.runningId == draft?.original?.id) app.runs.cancelAndJoin(); draftJob?.cancelAndJoin()
             if (draft != null) withContext(Dispatchers.IO) { draftFile(draft.original.id).delete() }
+            releaseDefaultName()
             // Keep the final editor frame during the Activity's exit transition.
             val close = onCloseEditor
             if (close != null) close() else mutableEditor.value = null
@@ -231,6 +235,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     }
     fun selectAngleUnit(unit: AngleUnit) = mutate { val settings = state.value.settings.copy(angleUnit = unit); app.settings.save(settings); mutable.update { it.copy(settings = settings) } }
     fun selectTheme(theme: ThemeMode) = mutate { val settings = state.value.settings.copy(theme = theme); app.settings.save(settings); mutable.update { it.copy(settings = settings) } }
+    fun selectEditorPaneSide(side:EditorPaneSide)=mutate{EditorPanePreferences.save(app,side);mutable.update{it.copy(editorPaneSide=side)}}
     fun refreshPrivileges() {
         val status = when (state.value.settings.mode) {
             ExecutionMode.STANDARD -> PrivilegeStatus(ExecutionMode.STANDARD, true, "standard_ready")
@@ -250,6 +255,8 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
             finally { mutable.update { it.copy(authorizing = false) } }
         }
     }
+    private fun releaseDefaultName(){reservedNameId?.let(app.defaultShortcutNames::release);reservedNameId=null}
+    override fun onCleared(){releaseDefaultName();super.onCleared()}
     private fun mutate(block: suspend () -> Unit) {
         if (!state.value.storageReady || mutationJob?.isActive == true) return
         mutationJob = viewModelScope.launch {

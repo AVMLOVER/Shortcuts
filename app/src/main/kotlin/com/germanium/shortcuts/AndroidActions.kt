@@ -95,7 +95,7 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
         } finally { if (Uri.parse(uri).authority == "${context.packageName}.files") runCatching { context.contentResolver.delete(Uri.parse(uri), null, null) } }
     }
     override suspend fun chooseMenu(title: String, items: List<Pair<String, String>>): String? = interactions.ask(Interaction.Menu(title, items))
-    override suspend fun quickLook(value: Value) { val app = context as ShortcutsApplication; if (app.runs.state.value.fromWidget) app.runs.widgetPreview(value); interactions.ask(Interaction.QuickLook(value)) }
+    override suspend fun quickLook(value: Value) { val app = context as ShortcutsApplication; if (app.runs.isWidgetExecution()) app.runs.widgetPreview(value) else interactions.ask(Interaction.QuickLook(value)) }
     override suspend fun askInput(title: String, prompt: String, initial: String, type: String) = interactions.ask(Interaction.Input(title, prompt, initial, type))
     override suspend fun chooseMany(title: String, items: List<Pair<String, String>>) = interactions.ask(Interaction.Checklist(title, items))?.let { if (it.isEmpty()) emptyList() else it.split(',') }
     override suspend fun workspace(operation: String, folder: String, name: String, content: String) = (this.context as ShortcutsApplication).workspace.perform(operation, folder, name, content)
@@ -115,7 +115,7 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
     override suspend fun requestHttp(request: HttpRequestSpec) = AndroidHttpClient().request(request)
     override suspend fun createCalendarEvent(event: CalendarEventSpec) = system.createEvent(event)
     override suspend fun showResult(title: String, body: String, allowCancel: Boolean) = showResult(title, Value.Text(body), allowCancel)
-    override suspend fun showResult(title: String, body: Value, allowCancel: Boolean) = interactions.ask(Interaction.ResultDialog(title, body, allowCancel)) == "ok"
+    override suspend fun showResult(title: String, body: Value, allowCancel: Boolean):Boolean { (context as ShortcutsApplication).runs.widgetPresented();return interactions.ask(Interaction.ResultDialog(title, body, allowCancel)) == "ok" }
     override suspend fun viewHtml(html: String) { interactions.ask(Interaction.Html(html)) }
     override suspend fun shortcutsForCall() = (context.applicationContext as ShortcutsApplication).shortcuts.list()
     override suspend fun chooseShortcut(items: List<Shortcut>) = interactions.ask(Interaction.Menu(context.tr("choose_shortcut"), items.map { it.uuid to it.name }))
@@ -137,8 +137,8 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
         val result = interactions.ask(Interaction.Capture(folder, filename)) ?: throw kotlinx.coroutines.CancellationException("Capture cancelled")
         return Value.Text(result)
     }
-    override suspend fun postNotification(title: String, body: String) = system.notify(title, Value.Text(body))
-    override suspend fun postNotification(title: String, body: Value) = system.notify(title, body)
+    override suspend fun postNotification(title: String, body: String) = postNotification(title, Value.Text(body))
+    override suspend fun postNotification(title: String, body: Value) { system.notify(title, body);(context as ShortcutsApplication).runs.widgetPresented() }
     override suspend fun installApk(uri: String, mode: ExecutionMode) = system.installApk(uri, mode)
     override suspend fun shell(command: String, mode: ExecutionMode, timeoutMillis: Long): ShellResult {
         val assessment = ShellPolicy.assess(command)

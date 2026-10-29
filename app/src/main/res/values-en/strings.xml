@@ -795,4 +795,15 @@
     <string name="ui_document_external">Open this format in another app.</string>
     <string name="ui_open_document">Open document</string>
     <string name="ui_err_open_document">Unable to open this document. Check access or install a compatible app.</string>
+    <string name="ui_more">More</string>
+    <string name="ui_editor_pane_side">Action panel position</string>
+    <string name="ui_pane_left">Left</string>
+    <string name="ui_pane_right">Right</string>
+    <string name="ui_editor_pane_hint">For tablets and foldables; left by default. Narrow windows use the bottom panel.</string>
+    <string name="ui_accessibility_permission">Accessibility</string>
+    <string name="ui_accessibility_service_name">Shortcuts automation helper</string>
+    <string name="ui_accessibility_description">Automation workflows may use this accessibility helper to help keep Shortcuts available in the background. It does not read screen content or perform gestures. Android may still stop the app.</string>
+    <string name="ui_select_time">Select time</string>
+    <string name="ui_time_keyboard">Keyboard input</string>
+    <string name="ui_time_dial">Use dial</string>
 </resources>

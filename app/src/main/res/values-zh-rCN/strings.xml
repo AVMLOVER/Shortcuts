@@ -795,4 +795,15 @@
     <string name="ui_document_external">此格式可使用其他应用打开。</string>
     <string name="ui_open_document">打开文档</string>
     <string name="ui_err_open_document">无法打开文档，请检查文件权限或安装支持此格式的应用。</string>
+    <string name="ui_more">更多</string>
+    <string name="ui_editor_pane_side">操作栏位置</string>
+    <string name="ui_pane_left">左侧</string>
+    <string name="ui_pane_right">右侧</string>
+    <string name="ui_editor_pane_hint">仅用于平板和折叠屏，默认左侧；窄窗口使用底部操作面板。</string>
+    <string name="ui_accessibility_permission">无障碍</string>
+    <string name="ui_accessibility_service_name">Shortcuts 自动化辅助</string>
+    <string name="ui_accessibility_description">自动化流程可能需要无障碍辅助，以帮助 Shortcuts 保持后台运行。此服务不读取屏幕内容、不执行手势；系统仍可能结束进程。</string>
+    <string name="ui_select_time">选择时间</string>
+    <string name="ui_time_keyboard">键盘输入</string>
+    <string name="ui_time_dial">使用表盘</string>
 </resources>

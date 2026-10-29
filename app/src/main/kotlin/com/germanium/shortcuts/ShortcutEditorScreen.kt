@@ -65,6 +65,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun ShortcutEditorScreen(editor: EditorState, state: HomeState, model: ShortcutsViewModel) {
     val context = LocalContext.current
+    val adaptive=rememberAdaptiveLayout()
     val scope = rememberCoroutineScope()
     val transfers = rememberTransfers(model)
     var library by rememberSaveable { mutableStateOf(false) }
@@ -155,6 +156,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     }
     fun openLibrary(owner: String? = null, branch: String? = null) { insertionAnchor = null; targetOwner = owner; targetBranch = branch; library = true }
     fun addFromLibrary(definition: ActionDefinition) {
+        if(busy)return
         library = false
         if (definition.type == "install_apk") chooseApk()
         else if (definition.type == "open_app") { reselect = null; apps = true }
@@ -201,8 +203,16 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     }
     BackHandler { leave() }
     val draggingActions = drag.source != null || libraryDragging
-    Box(Modifier.fillMaxSize()) {
-    Scaffold(contentWindowInsets = shortcutsContentInsets(), modifier = Modifier.fillMaxSize().testTag("shortcut_editor_fullscreen"), topBar = {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val docked=adaptive.policy.sidePane&&!choosingOutput
+    val paneLeft=state.editorPaneSide==EditorPaneSide.LEFT
+    val hingeStart=adaptive.hingeStart?.takeIf{it>0.dp&&it<maxWidth}
+    val hingeEnd=adaptive.hingeEnd?.takeIf{it>=0.dp&&it<maxWidth}
+    val validHinge=docked&&hingeStart!=null&&hingeEnd!=null&&hingeEnd>=hingeStart
+    val paneWidth=if(validHinge){if(paneLeft)hingeStart!! else maxWidth-hingeEnd!!}else maxWidth*adaptive.policy.paneFraction
+    val editorStart=if(docked&&paneLeft){if(validHinge)hingeEnd!! else paneWidth}else 0.dp
+    val editorEnd=if(docked&&!paneLeft){if(validHinge)maxWidth-hingeStart!! else paneWidth}else 0.dp
+    Scaffold(contentWindowInsets = shortcutsContentInsets(), modifier = Modifier.fillMaxSize().padding(start=editorStart,end=editorEnd).testTag("shortcut_editor_fullscreen"), topBar = {
         TopAppBar(title = {
             if (draggingActions) DragDeleteTarget(drag.overDelete(if (libraryDragging) libraryPointer else drag.pointer), Modifier.onGloballyPositioned { drag.deleteBounds = Rect(it.positionInRoot(), it.size.toSize()) })
             else Text(t(if (choosingOutput) "select_output" else "edit_shortcut"), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -286,6 +296,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     }
                                 } else {
                                 definition?.fields?.forEach { field ->
+                                    if (step.type == "show_result" && field.key == "allowCancel") return@forEach
                                     if (step.type == "run_shortcut" && field.key == "shortcutUuid" && step.parameters["selection"] == "ask") return@forEach
                                     if (step.type == "if" && field.key == "right" && step.parameters["operator"] in ShortcutEngine.SOURCE_CONDITIONS) return@forEach
                                     if (step.type == "get_url") {
@@ -400,12 +411,22 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     catch (e: Exception) { if (e is CancellationException) throw e; model.report(e) }
                                 } }, enabled = !busy) { Text(t("action_choose_file")) }
                                 if (step.type == "shell" && state.currentStepId == step.id && state.runningId != null) LiveShell(state.shellStdout, state.shellStderr)
-                                if (ActionOutputs.produces(step.type) && !ActionOutputs.isVariableAction(step.type)) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                if (InterfacePolicies.hasMore(step.type)) {
+                                var more by rememberSaveable(editor.original.id,step.id) { mutableStateOf(false) }
+                                TextButton(onClick={more=!more},modifier=Modifier.testTag("action_more_${step.id}")) { Text(t("more"));AppIcon(R.drawable.ic_down,modifier=Modifier.graphicsLayer{rotationZ=if(more)180f else 0f}) }
+                                AnimatedVisibility(more) { Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                                if (step.type=="show_result") Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                                    Text(t("allow_cancel"),Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
+                                    ExpressiveSwitch(step.parameters["allowCancel"]=="true",{parameter(step,"allowCancel",it.toString())},enabled=!busy,modifier=Modifier.testTag("allow_cancel_${step.id}"))
+                                }
+                                if (InterfacePolicies.variableOptions(step.type)) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(t("add_to_variable_bar"), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                                     ExpressiveSwitch(ActionOutputs.inVariableBar(step), { parameter(step, "inVariableBar", it.toString()) }, enabled = !busy, modifier = Modifier.testTag("variable_bar_toggle_${step.id}"))
                                 }
-                                if (ActionOutputs.produces(step.type) && !ActionOutputs.isVariableAction(step.type)) OutlinedTextField(step.parameters["resultVariable"].orEmpty(), { parameter(step, "resultVariable", it) }, label = { Text(t("save_result")) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) focused = null })
-                                if (ActionOutputs.produces(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < MAX_WORKFLOW_ACTIONS) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
+                                if (InterfacePolicies.variableOptions(step.type)) OutlinedTextField(step.parameters["resultVariable"].orEmpty(), { parameter(step, "resultVariable", it) }, label = { Text(t("save_result")) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) focused = null })
+                                if (InterfacePolicies.variableOptions(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < MAX_WORKFLOW_ACTIONS) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
+                                } }
+                                }
                                 if (step.type == "if" && step.branches.none { it.id == "else" }) OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch("else"))) }, enabled = !busy) { Text(t("add_else")) }
                                 if (step.type == "menu") OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch(label = context.tr("menu_item") + " ${step.branches.size + 1}"))) }, enabled = !busy && step.branches.size < 30) { Text(t("add_menu_item")) }
                                 observed[step.id]?.let { result -> if (step.type == "output") QuickLookContent(context.applicationContext as ShortcutsApplication,result.value) else Text(t("result") + ": " + result.output.take(512), style = MaterialTheme.typography.bodySmall) }
@@ -450,11 +471,12 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
         }
     }
     if (appearancePicker) ShortcutAppearancePicker(editor.icon, editor.color, { appearancePicker = false }, model::editAppearance)
-    AnimatedVisibility(library, enter=fadeIn(tween(180)),exit=if(libraryDragging) ExitTransition.None else fadeOut(tween(160)),modifier=Modifier.fillMaxSize()) {
+    if(docked)ActionLibrary(onDismiss={},onAdd=::addFromLibrary,modifier=Modifier.align(if(paneLeft)Alignment.CenterStart else Alignment.CenterEnd).width(paneWidth).fillMaxHeight().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).padding(8.dp),docked=true,enabled=!busy)
+    AnimatedVisibility(library&&!adaptive.policy.sidePane, enter=fadeIn(tween(180)),exit=if(libraryDragging) ExitTransition.None else fadeOut(tween(160)),modifier=Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)).clickable { library = false })
     }
-    AnimatedVisibility(library,enter=slideInVertically(tween(320,easing=FastOutSlowInEasing)){it}+fadeIn(tween(180)),exit=if(libraryDragging) ExitTransition.None else slideOutVertically(tween(220,easing=FastOutSlowInEasing)){it}+fadeOut(tween(140)),modifier=Modifier.align(Alignment.BottomCenter)) {
-        ActionLibrary(onDismiss = { library = false }, onAdd = ::addFromLibrary)
+    AnimatedVisibility(library&&!adaptive.policy.sidePane,enter=slideInVertically(tween(320,easing=FastOutSlowInEasing)){it}+fadeIn(tween(180)),exit=if(libraryDragging) ExitTransition.None else slideOutVertically(tween(220,easing=FastOutSlowInEasing)){it}+fadeOut(tween(140)),modifier=Modifier.align(Alignment.BottomCenter)) {
+        ActionLibrary(onDismiss = { library = false }, onAdd = ::addFromLibrary,enabled=!busy)
     }
     if (apps) AppsPicker(onDismiss = { apps = false; reselect = null }, onError = model::report, allPackages = byId[reselect]?.type == "intent") { selected ->
         val target = byId[reselect]
@@ -500,16 +522,18 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun ActionLibrary(onDismiss: () -> Unit, onAdd: (ActionDefinition) -> Unit, modifier: Modifier = Modifier) {
+@Composable private fun ActionLibrary(onDismiss: () -> Unit, onAdd: (ActionDefinition) -> Unit, modifier: Modifier = Modifier,docked:Boolean=false,enabled:Boolean=true) {
     var query by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf<String?>(null) }
-    val localized = ActionCatalog.all.map { Triple(it, t(it.title), t("group_${it.group}")) }
+    val context=LocalContext.current
+    val configuration=LocalConfiguration.current
+    val localized = remember(configuration) { ActionCatalog.all.map { Triple(it, context.tr(it.title), context.tr("group_${it.group}")) } }
     val dragScope = rememberCoroutineScope()
-    BackHandler(onBack = onDismiss)
-    Surface(modifier.fillMaxWidth().fillMaxHeight(0.74f).imePadding().windowInsetsPadding(shortcutsBottomInsets()).testTag("action_library_panel"), shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 6.dp, shadowElevation = 16.dp) {
+    BackHandler(enabled=!docked,onBack = onDismiss)
+    Surface(modifier.fillMaxWidth().fillMaxHeight(if(docked)1f else 0.74f).imePadding().windowInsetsPadding(shortcutsBottomInsets()).testTag("action_library_panel"), shape = if(docked)RoundedCornerShape(24.dp)else RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 6.dp, shadowElevation = 16.dp) {
         val localView = androidx.compose.ui.platform.LocalView.current
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(t("add_action"), Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium); IconButton(onClick = onDismiss) { AppIcon(R.drawable.ic_close, description = t("close")) } }
+        Column(Modifier.fillMaxSize().padding(horizontal = if(docked)12.dp else 24.dp, vertical = 12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(t("add_action"), Modifier.weight(1f), style = if(docked)MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium); if(!docked)IconButton(onClick = onDismiss) { AppIcon(R.drawable.ic_close, description = t("close")) } }
             Text(t("drag_library_hint"), style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(query, { query = it }, label = { Text(t("search_actions")) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).testTag("library_search"))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -521,7 +545,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                 if (filtered.isEmpty()) item { Text(t("no_actions")) }
                 filtered.groupBy { it.first.group }.forEach { (groupKey, actions) ->
                 item(key = "group:$groupKey") { Text(t("group_$groupKey"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp)) }
-                items(actions, key = { it.first.type }) { (definition, title, group) -> Card(modifier = Modifier.testTag("library_action_${definition.type}").combinedClickable(onClick = { onAdd(definition) }, onLongClick = { if (startLibraryDrag(localView, definition.type, title)) dragScope.launch { delay(100); onDismiss() } }), shape = RoundedCornerShape(22.dp)) {
+                items(actions, key = { it.first.type }) { (definition, title, group) -> Card(modifier = Modifier.testTag("library_action_${definition.type}").graphicsLayer{alpha=if(enabled)1f else 0.38f}.combinedClickable(enabled=enabled,onClick = { onAdd(definition) }, onLongClick = { if (enabled&&startLibraryDrag(localView, definition.type, title)) dragScope.launch { delay(100); onDismiss() } }), shape = RoundedCornerShape(22.dp)) {
                     Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { ActionIcon(definition) }; Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(group, style = MaterialTheme.typography.bodySmall) }; AppIcon(R.drawable.ic_add) }
                 } }
                 }

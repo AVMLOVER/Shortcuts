@@ -44,3 +44,21 @@ import androidx.compose.ui.unit.dp
         }
     }
 }
+
+@Composable internal fun FloatingNavigationRail(selectedTab:Int,select:(Int)->Unit) {
+    Box(Modifier.width(104.dp).fillMaxHeight().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Start+WindowInsetsSides.Bottom)).padding(10.dp),contentAlignment=Alignment.Center){
+        Surface(shape=RoundedCornerShape(32.dp),color=MaterialTheme.colorScheme.surfaceContainerHigh,tonalElevation=6.dp,shadowElevation=8.dp,modifier=Modifier.testTag("floating_navigation_rail")){
+            Column(Modifier.padding(6.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                listOf("shortcuts","automation","settings").forEachIndexed{index,key->
+                    val chosen=index==selectedTab;val title=t(key)
+                    Surface(onClick={select(index)},shape=RoundedCornerShape(26.dp),color=if(chosen)MaterialTheme.colorScheme.primaryContainer else Color.Transparent,modifier=Modifier.width(72.dp).heightIn(min=64.dp).testTag("nav_$key").semantics{selected=chosen;role=Role.Tab;contentDescription=title}){
+                        Column(Modifier.padding(horizontal=4.dp,vertical=12.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
+                            AppIcon(listOf(R.drawable.ic_grid,R.drawable.ic_automation,R.drawable.ic_settings)[index])
+                            if(chosen)Text(title,style=MaterialTheme.typography.labelSmall,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
