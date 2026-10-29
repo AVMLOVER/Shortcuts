@@ -239,7 +239,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilledTonalButton(onClick = { openLibrary() }, enabled = !busy && !choosingOutput && flatSteps.size < 1000, modifier = Modifier.weight(1f).height(52.dp).testTag("open_action_library"), shape = RoundedCornerShape(20.dp)) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_action")) }
+                FilledTonalButton(onClick = { openLibrary() }, enabled = !busy && !choosingOutput && flatSteps.size < MAX_WORKFLOW_ACTIONS, modifier = Modifier.weight(1f).height(52.dp).testTag("open_action_library"), shape = RoundedCornerShape(20.dp)) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_action")) }
                 FilledIconButton(onClick = { if (state.runningId != null) model.cancelRun() else model.runEditor() }, enabled = !state.saving && state.storageReady && !choosingOutput,
                     modifier = Modifier.size(52.dp).testTag("run_shortcut"), shape = RoundedCornerShape(20.dp)) { AppIcon(if (state.runningId == null) R.drawable.ic_play else R.drawable.ic_stop, description = t(if (state.runningId == null) "run" else "stop")) }
             }
@@ -372,13 +372,22 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (step.type == "wait_return") Text(t("wait_return_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "get_application_list") Text(t("application_list_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "share_input") Text(t("share_input_hint"), style = MaterialTheme.typography.bodySmall)
-                                if (step.type in listOf("mask_image", "overlay_image", "flip_image", "combine_images", "resize_image", "compress_image", "text_image")) Text(t("image_transform_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type in listOf("mask_image", "overlay_image", "flip_image", "combine_images", "resize_image", "compress_image", "text_image", "rotate_image", "convert_image")) Text(t("image_transform_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "factor_number") Text(t("factor_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "set_variable") Text(t("set_variable_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "append_variable") Text(t("append_variable_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "resize_image") Text(t("resize_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "compress_image") Text(t("compression_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "make_pdf") Text(t("make_pdf_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type in listOf("shutdown", "reboot", "write_partition")) Text(t("power_root_hint"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (step.type == "reboot") Text(t("reboot_target_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "write_partition") {
+                                    Text(t("partition_hint"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                    OutlinedButton(onClick = { scope.launch {
+                                        try { val app = context.applicationContext as ShortcutsApplication; val uri = app.interactions.ask(Interaction.PickFile(false)); if (uri != null) { PartitionWrites.imageName(AndroidContent(app).name(android.net.Uri.parse(uri))); parameter(step,"source",uri) } }
+                                        catch(e: Exception) { if(e is CancellationException) throw e; model.report(e) }
+                                    } }, enabled = !busy) { Text(t("choose_partition_image")) }
+                                }
                                 if (step.type == "overlay_image" || step.type == "mask_image" && step.parameters["maskShape"] == "custom") FilledTonalButton(onClick = { scope.launch {
                                     try { val uri = (context.applicationContext as ShortcutsApplication).interactions.ask(Interaction.PickFile(true)); if (uri != null) parameter(step, "secondary", uri) }
                                     catch (e: Exception) { if (e is CancellationException) throw e; model.report(e) }
@@ -393,14 +402,14 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     ExpressiveSwitch(ActionOutputs.inVariableBar(step), { parameter(step, "inVariableBar", it.toString()) }, enabled = !busy, modifier = Modifier.testTag("variable_bar_toggle_${step.id}"))
                                 }
                                 if (ActionOutputs.produces(step.type) && !ActionOutputs.isVariableAction(step.type)) OutlinedTextField(step.parameters["resultVariable"].orEmpty(), { parameter(step, "resultVariable", it) }, label = { Text(t("save_result")) }, enabled = !busy, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) focused = null })
-                                if (ActionOutputs.produces(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < 1000) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
+                                if (ActionOutputs.produces(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < MAX_WORKFLOW_ACTIONS) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
                                 if (step.type == "if" && step.branches.none { it.id == "else" }) OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch("else"))) }, enabled = !busy) { Text(t("add_else")) }
                                 if (step.type == "menu") OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch(label = context.tr("menu_item") + " ${step.branches.size + 1}"))) }, enabled = !busy && step.branches.size < 30) { Text(t("add_menu_item")) }
                                 observed[step.id]?.let { result -> Text(t("result") + ": " + result.output.take(512), style = MaterialTheme.typography.bodySmall) }
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     ToolIcon(R.drawable.ic_up, "move_up", !busy && row.index > 0, modifier = Modifier.testTag("move_up_${step.id}")) { model.move(step.id, -1) }
                                     ToolIcon(R.drawable.ic_down, "move_down", !busy && row.index < row.size - 1, modifier = Modifier.testTag("move_down_${step.id}")) { model.move(step.id, 1) }
-                                    ToolIcon(R.drawable.ic_copy, "duplicate", !busy && flatSteps.size + allSteps(listOf(step)).size <= 1000) { model.editSteps(TreeEdits.copyAfter(editor.steps, step.id)) }
+                                    ToolIcon(R.drawable.ic_copy, "duplicate", !busy && flatSteps.size + allSteps(listOf(step)).size <= MAX_WORKFLOW_ACTIONS) { model.editSteps(TreeEdits.copyAfter(editor.steps, step.id)) }
                                     ToolIcon(R.drawable.ic_close, "remove", !busy, danger = true, modifier = Modifier.testTag("remove_action_${step.id}")) { removeAction(step.id) }
                                 }
                                 }

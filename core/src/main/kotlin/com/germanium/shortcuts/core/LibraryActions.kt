@@ -118,7 +118,7 @@ internal fun libraryActions(platform: PlatformActions): List<ActionHandler> = li
     Handler("expand_url") { p, c -> HttpActions.request(p, c, platform, "expand_url") },
     Handler("get_url_headers") { p, c -> HttpActions.request(p, c, platform, "get_url_headers") },
     Handler("get_url_component") { p, c -> HttpActions.component(c.text(p, "url", "{{input}}"), p.getOrDefault("component", "host")) },
-    Handler("open_url") { p, c -> platform.launchIntent(IntentSpec(data = c.text(p, "url"))); c.value },
+    Handler("open_url") { p, c -> platform.openUrl(UrlValues.normalize(c.text(p, "url", "{{input}}"), "http")); c.value },
     Handler("get_application_list") { p, c ->
         val offset = c.text(p, "offset", "0").toIntOrNull() ?: throw Problem("err_number")
         val limit = c.text(p, "limit", "256").toIntOrNull() ?: throw Problem("err_number")

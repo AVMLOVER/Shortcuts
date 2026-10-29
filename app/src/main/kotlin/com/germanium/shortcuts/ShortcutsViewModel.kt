@@ -99,7 +99,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     fun editAppearance(icon: String, color: String) { editor.value?.let { changeEditor(it, it.copy(icon = icon, color = color)) } }
     fun editSteps(steps: List<ActionStep>) {
         try {
-            require(allSteps(steps).size <= 1000) { throw Problem("err_size") }
+            require(allSteps(steps).size <= MAX_WORKFLOW_ACTIONS) { throw Problem("err_size") }
             val draft = editor.value ?: return
             changeEditor(draft, draft.copy(steps = steps, layoutVersion = draft.layoutVersion + 1, referenceVersion = draft.referenceVersion + 1))
         } catch (e: Exception) { report(if (e is Problem) e else Problem("err_size")) }

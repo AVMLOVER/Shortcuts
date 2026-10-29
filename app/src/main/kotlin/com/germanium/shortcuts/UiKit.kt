@@ -171,7 +171,7 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
             }
         }, confirmButton = {}, dismissButton = { TextButton(onClick = { app.interactions.reply(active, null) }) { Text(t("cancel")) } })
         is Interaction.QuickLook -> AlertDialog(modifier = Modifier.testTag("quick_look"), onDismissRequest = { app.interactions.reply(active, "ok") }, title = { Text(t("quick_look")) }, text = {
-            SelectionContainer { Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { ScreenshotPreview(app, active.text); Text(active.text.ifEmpty { t("no_output") }.take(65536)); if (active.text.length > 65536) Text(t("preview_limited"), style = MaterialTheme.typography.bodySmall) } }
+            QuickLookContent(app, active.value)
         }, confirmButton = { TextButton(onClick = { app.interactions.reply(active, "ok") }, modifier = Modifier.testTag("close_quick_look")) { Text(t("close")) } }, dismissButton = {
             TextButton(onClick = { runCatching { app.getSystemService(android.content.ClipboardManager::class.java).setPrimaryClip(android.content.ClipData.newPlainText("Shortcuts", active.text)) }.onFailure { app.diagnostics.trace("clipboard_failed", it) } }) { Text(t("copy_result")) }
         })

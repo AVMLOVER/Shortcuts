@@ -8,6 +8,15 @@ data class IntentSpec(
     val extras: List<IntentExtra> = emptyList(),
 )
 interface PlatformActions {
+    suspend fun openUrl(url: String) = launchIntent(IntentSpec(data = url, categories = listOf("android.intent.category.BROWSABLE")))
+    suspend fun power(reboot: Boolean, mode: ExecutionMode, target: String = "system"): Unit = throw Problem("err_root_required")
+    suspend fun archive(source: Value, folder: String, filename: String, extract: Boolean): Value = throw Problem("err_backend")
+    suspend fun generateQr(text: String, size: Int, correction: String): Value = throw Problem("err_backend")
+    suspend fun readBarcode(source: String): Value = throw Problem("err_backend")
+    suspend fun speak(text: String, language: String, rate: Float, pitch: Float): Unit = throw Problem("err_backend")
+    suspend fun volume(percent: Int? = null): Int = throw Problem("err_backend")
+    suspend fun flashlight(enabled: Boolean): Unit = throw Problem("err_backend")
+    suspend fun writePartition(source: String, target: String, mode: ExecutionMode): Unit = throw Problem("err_root_required")
     suspend fun shell(command: String, mode: ExecutionMode, timeoutMillis: Long): ShellResult
     suspend fun launchIntent(spec: IntentSpec)
     suspend fun chooseMenu(title: String, items: List<Pair<String, String>>): String? = error("Menu UI unavailable")

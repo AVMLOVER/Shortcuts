@@ -46,7 +46,7 @@ data class Shortcut(
         require(createdAt >= 0 && updatedAt >= createdAt) { throw Problem("err_invalid_data") }
         require(folderId.isEmpty() || folderId.matches(Regex("[a-zA-Z0-9_-]{1,80}"))) { throw Problem("err_invalid_data") }
         val flattened = allSteps(steps)
-        require(flattened.size <= 1000) { "Workflow exceeds 1000 actions" }
+        require(flattened.size <= MAX_WORKFLOW_ACTIONS) { "Workflow exceeds $MAX_WORKFLOW_ACTIONS actions" }
         require(flattened.map { it.id }.distinct().size == flattened.size) { "Duplicate action ID" }
         require(flattened.all { it.id.isNotBlank() && it.type.isNotBlank() }) { "Action ID and type must not be empty" }
         require(flattened.all { step -> step.branches.size <= 30 && step.branches.map { it.id }.distinct().size == step.branches.size && step.branches.all { it.id.isNotBlank() && it.label.length <= 200 } }) { "Invalid branches" }
@@ -65,5 +65,7 @@ object DemoShortcut {
     )
 }
 
-const val SHORTCUTS_VERSION = 10003
+const val SHORTCUTS_VERSION = 10004
+const val MAX_WORKFLOW_ACTIONS = 10_000
+const val MAX_RUN_STEPS = 50_000
 fun stableShortcutUuid(id: String): String = if (id.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))) id else UUID.nameUUIDFromBytes(("com.germanium.shortcuts:" + id).toByteArray(Charsets.UTF_8)).toString()

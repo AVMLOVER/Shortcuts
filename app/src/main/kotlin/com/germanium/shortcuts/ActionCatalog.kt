@@ -25,7 +25,7 @@ object ActionCatalog {
     private val dictionary = ActionField("dictionary", "dictionary_source", "{{input}}")
     private val key = ActionField("key", "key", "name")
     private val valueType = ActionField("valueType", "value_type", "auto", choices = valueTypes)
-    private val definitions = ContentActionCatalog.all + listOf(
+    private val definitions = Version104Catalog.all + ContentActionCatalog.all + listOf(
         ActionDefinition("text", "basic", "T", listOf(ActionField("value", "text_type", multiline = true))),
         ActionDefinition("number", "math", "123", listOf(ActionField("value", "number_type", "0"))),
         ActionDefinition("current_location", "device", "◎", emptyList()),
@@ -101,7 +101,7 @@ object ActionCatalog {
         ActionDefinition("get_url_component", "web", "⌘", listOf(ActionField("url", "url", "{{input}}"), ActionField("component", "url_component", "host", choices = listOf("scheme", "user", "password", "host", "port", "path", "query", "fragment", "all").map { it to "url_part_$it" }))),
         ActionDefinition("get_html", "web", "</>", listOf(ActionField("url", "url", "https://"))),
         ActionDefinition("view_html", "web", "</>", listOf(ActionField("html", "html_source", "{{input}}", true))),
-        ActionDefinition("open_url", "web", "↗", listOf(ActionField("url", "url", "https://"))),
+        ActionDefinition("open_url", "web", "↗", listOf(ActionField("url", "url", "{{input}}"))),
         ActionDefinition("get_clipboard", "device", "▤↓", emptyList()),
         ActionDefinition("set_clipboard", "device", "▤↑", listOf(value)),
         ActionDefinition("device_info", "device", "▣?", emptyList()),

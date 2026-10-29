@@ -9,14 +9,15 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** A bounded, interruptible process task shared by standard/root and Shizuku's remote process. */
-class ShellProcessTask {
+class ShellProcessTask(private val maximumTimeoutMillis: Long = 120000) {
+    init { require(maximumTimeoutMillis in 1..3600000) }
     private val cancelled = AtomicBoolean(false)
     @Volatile private var process: Process? = null
     @Volatile var liveStdout: String = ""; private set
     @Volatile var liveStderr: String = ""; private set
     fun cancel() { cancelled.set(true); process?.destroyForcibly() }
     fun run(argv: List<String>, timeoutMillis: Long, input: InputStream? = null, onStarted: () -> Unit = {}, onOutput: (String, String) -> Unit = { _, _ -> }): ShellResult {
-        require(timeoutMillis in 1..120000)
+        require(timeoutMillis in 1..maximumTimeoutMillis)
         if (cancelled.get()) throw CancellationException("Command cancelled")
         val child = ProcessBuilder(argv).start()
         process = child

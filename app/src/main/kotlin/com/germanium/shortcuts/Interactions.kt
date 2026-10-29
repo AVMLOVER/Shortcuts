@@ -11,7 +11,10 @@ sealed class Interaction {
     val id = java.util.UUID.randomUUID().toString()
     var launched: Boolean = false
     class Menu(val title: String, val items: List<Pair<String, String>>) : Interaction()
-    class QuickLook(val text: String) : Interaction()
+    class QuickLook(val value: com.germanium.shortcuts.core.Value) : Interaction() {
+        constructor(text: String) : this(com.germanium.shortcuts.core.Value.Text(text))
+        val text: String get() = value.text()
+    }
     class Permissions(val permissions: Array<String>) : Interaction()
     class Launch(val intent: Intent) : Interaction()
     class Input(val title: String, val prompt: String, val initial: String, val type: String) : Interaction()

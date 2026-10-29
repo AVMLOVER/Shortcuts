@@ -48,9 +48,9 @@ internal class AndroidContent(private val app: ShortcutsApplication) {
             Value.Dictionary(linkedMapOf("_shared" to Value.BooleanValue(true), "text" to Value.Text(text), "images" to Value.ListValue(photos), "files" to Value.ListValue(files), "urls" to Value.ListValue(ContentInput.urls(text))))
         } catch (e: Exception) { created.forEach { runCatching { file(it).delete() } }; throw e }
     }
-    fun references(value: Value, kind: String = "files"): List<String> {
+    fun references(value: Value, kind: String = "files", limit: Int = 32): List<String> {
         val selected = ContentInput.field(value, kind) ?: value
-        return ContentInput.flatten(selected).map { it.text() }.filter { isFile(it) }.also { require(it.size <= 32) { throw Problem("err_size") } }
+        return ContentInput.flatten(selected).map { it.text() }.filter { isFile(it) }.also { require(it.size <= limit) { throw Problem("err_size") } }
     }
     suspend fun extract(kind: String, source: Value): Value = withContext(Dispatchers.IO) {
         if (kind == "any") return@withContext source

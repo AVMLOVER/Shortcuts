@@ -10,12 +10,57 @@ import com.germanium.shortcuts.core.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
 
 class AndroidActions(context: Context, private val interactions: Interactions, private val foregroundActivity: () -> Activity?) : PlatformActions {
     private val context = context.applicationContext
     private val shizuku = ShizukuShellBackend(this.context)
     private val system = AndroidSystemActions(this.context, interactions, foregroundActivity, shizuku)
     private val images = AndroidImages(this.context as ShortcutsApplication)
+    private val extras = AndroidExtras104(this.context as ShortcutsApplication)
+    override suspend fun power(reboot: Boolean, mode: ExecutionMode, target: String) {
+        require(mode == ExecutionMode.ROOT) { throw Problem("err_root_required") }
+        val command = PowerTargets.command(reboot,target)
+        val granted = try { rawShell("id -u",ExecutionMode.ROOT,5000).let { it.exitCode == 0 && !it.truncated && it.stdout.trim() == "0" } }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { false }
+        require(granted) { throw Problem("err_root_required") }
+        val result = rawShell(command,ExecutionMode.ROOT,10000)
+        require(result.exitCode == 0) { throw Problem("err_power") }
+    }
+    override suspend fun openUrl(url: String) {
+        val uri = Uri.parse(url)
+        val browser = if (uri.scheme?.lowercase() in listOf("http","https")) {
+            val generic = Intent(Intent.ACTION_VIEW,Uri.parse("http://example.invalid/")).addCategory(Intent.CATEGORY_BROWSABLE)
+            context.packageManager.resolveActivity(generic,android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName?.takeUnless { it == "android" || it == context.packageName }
+        } else null
+        launchIntent(IntentSpec(data=url,packageName=browser.orEmpty(),categories=listOf(Intent.CATEGORY_BROWSABLE)))
+    }
+    override suspend fun generateQr(text: String, size: Int, correction: String) = extras.generateQr(text,size,correction)
+    override suspend fun readBarcode(source: String) = extras.readBarcode(source)
+    override suspend fun speak(text: String, language: String, rate: Float, pitch: Float) = extras.speak(text,language,rate,pitch)
+    override suspend fun volume(percent: Int?) = extras.volume(percent)
+    override suspend fun flashlight(enabled: Boolean) = extras.flashlight(enabled)
+    override suspend fun writePartition(source: String, target: String, mode: ExecutionMode) = AndroidPartitionWriter(context as ShortcutsApplication) { command, timeout -> rawShell(command,ExecutionMode.ROOT,timeout) }.write(source,target,mode)
+    override suspend fun archive(source: Value, folder: String, filename: String, extract: Boolean): Value = withContext(Dispatchers.IO) {
+        val app = context as ShortcutsApplication; val content = AndroidContent(app)
+        val references = content.references(source,"files",256)
+        require(references.isNotEmpty() && references.size <= 256) { throw Problem("err_archive") }
+        if (extract) {
+            require(references.size == 1) { throw Problem("err_archive") }
+            app.workspace.importArchive(folder,ZipValues.unpack(images.bytes(references.single())))
+        } else {
+            var total = 0L; val names = mutableSetOf<String>()
+            val entries = references.map { ref ->
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                val bytes = images.bytes(ref); total += bytes.size; require(total <= ZipValues.MAX_BYTES) { throw Problem("err_size") }
+                val original = (if (ref.startsWith("content://")) content.name(Uri.parse(ref)) else java.io.File(ref).name).replace(Regex("[\\\\/:\\p{Cntrl}]"),"_").ifBlank { "file" }
+                var name = original; var index = 2; while (!names.add(name)) { name = "${index++}-$original" }
+                ArchiveEntry(name,bytes)
+            }
+            val name = filename.ifBlank { "archive-${java.util.UUID.randomUUID()}.zip" }; require(name.endsWith(".zip",true)) { throw Problem("err_path") }
+            Value.Text(app.workspace.importBinary(folder,name,ZipValues.pack(entries)))
+        }
+    }
     override suspend fun readBinary(source: String) = images.bytes(source)
     override suspend fun convertInput(kind: String, value: Value) = AndroidContent(context as ShortcutsApplication).extract(kind, value)
     override suspend fun transformImage(operation: String, source: Value, options: Map<String, String>) = if (operation in listOf("text_image", "make_pdf")) AndroidImageDocuments(context as ShortcutsApplication).perform(operation, source, options) else AndroidImageTransforms(context as ShortcutsApplication).perform(operation, source, options)
@@ -50,7 +95,7 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
         } finally { if (Uri.parse(uri).authority == "${context.packageName}.files") runCatching { context.contentResolver.delete(Uri.parse(uri), null, null) } }
     }
     override suspend fun chooseMenu(title: String, items: List<Pair<String, String>>): String? = interactions.ask(Interaction.Menu(title, items))
-    override suspend fun quickLook(value: Value) { val app = context as ShortcutsApplication; if (app.runs.state.value.fromWidget) app.runs.widgetPreview(value.text()) else interactions.ask(Interaction.QuickLook(value.text())) }
+    override suspend fun quickLook(value: Value) { val app = context as ShortcutsApplication; if (app.runs.state.value.fromWidget) app.runs.widgetPreview(value.text()); interactions.ask(Interaction.QuickLook(value)) }
     override suspend fun askInput(title: String, prompt: String, initial: String, type: String) = interactions.ask(Interaction.Input(title, prompt, initial, type))
     override suspend fun chooseMany(title: String, items: List<Pair<String, String>>) = interactions.ask(Interaction.Checklist(title, items))?.let { if (it.isEmpty()) emptyList() else it.split(',') }
     override suspend fun workspace(operation: String, folder: String, name: String, content: String) = (this.context as ShortcutsApplication).workspace.perform(operation, folder, name, content)
@@ -108,7 +153,7 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
         val body = "cd ${ShellPolicy.quote(directory.absolutePath)} || exit 125\n$command"
         if (mode == ExecutionMode.SHIZUKU) return shizuku.execute(body, timeoutMillis, onOutput = output)
         val argv = if (mode == ExecutionMode.ROOT) listOf("su", "-c", "if [ \"$(id -u)\" != 0 ]; then echo 'Root required' >&2; exit 126; fi\n$body") else listOf("/system/bin/sh", "-c", body)
-        return runInterruptible(Dispatchers.IO) { ShellProcessTask().run(argv, timeoutMillis, input, onOutput = output) }
+        return runInterruptible(Dispatchers.IO) { ShellProcessTask(maxOf(120000,timeoutMillis)).run(argv, timeoutMillis, input, onOutput = output) }
     }
     suspend fun savedWifiNetworks(mode: ExecutionMode): List<String> {
         val ordinary = AndroidWifi.configured(context) + listOf(AndroidWifi.current(context)).filter { it.isNotBlank() }

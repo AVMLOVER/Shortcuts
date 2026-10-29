@@ -77,6 +77,7 @@ object HttpActions {
     fun json(value: Value): String {
         fun quote(text: String) = "\"" + buildString { text.forEach { char -> append(when (char) { '\\' -> "\\\\"; '"' -> "\\\""; '\n' -> "\\n"; '\r' -> "\\r"; '\t' -> "\\t"; else -> if (char.code < 32) "\\u" + char.code.toString(16).padStart(4, '0') else char.toString() }) } } + "\""
         return when (value) {
+            Value.Null -> "null"
             is Value.Text -> quote(value.value)
             is Value.Number, is Value.BooleanValue -> value.text()
             is Value.ListValue -> value.items.joinToString(",", "[", "]", transform = ::json)

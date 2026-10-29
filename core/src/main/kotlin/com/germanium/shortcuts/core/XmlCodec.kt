@@ -87,7 +87,7 @@ class XmlCodec {
         fun readSteps(parent: Element, depth: Int): List<ActionStep> {
             require(depth <= 16) { "Workflow nesting exceeds 16 levels" }
             return parent.children().map { action ->
-                require(++count <= 1000 && action.tagName == "action") { "Invalid action count or element" }
+                require(++count <= MAX_WORKFLOW_ACTIONS && action.tagName == "action") { "Invalid action count or element" }
                 action.only("parameter", "branch")
                 val params = action.children().filter { it.tagName == "parameter" }.map { it.required("key") to it.text() }
                 require(params.map { it.first }.distinct().size == params.size) { "Duplicate parameter" }
@@ -139,7 +139,11 @@ class XmlCodec {
         return root
     }
 
-    private fun Element.children(): List<Element> = (0 until childNodes.length).mapNotNull { childNodes.item(it) as? Element }
+    private fun Element.children(): List<Element> {
+        // Android's DOM can copy the child list in getChildNodes(); obtain it once per traversal.
+        val nodes = childNodes
+        return (0 until nodes.length).mapNotNull { nodes.item(it) as? Element }
+    }
     private fun Element.only(vararg names: String) { require(children().all { it.tagName in names }) { throw Problem("err_xml") } }
     private fun Element.one(name: String): Element = children().filter { it.tagName == name }.single()
     private fun Element.required(name: String): String = getAttribute(name).also { require(it.isNotEmpty()) { throw Problem("err_xml") } }
@@ -155,5 +159,5 @@ class XmlCodec {
         if (e is FutureShortcutVersion) throw e
         throw InvalidDocument("Invalid XML", e)
     }
-    companion object { const val MAX_BYTES = 1024 * 1024; const val MAX_BUNDLE_BYTES = 8 * 1024 * 1024 }
+    companion object { const val MAX_BYTES = 8 * 1024 * 1024; const val MAX_BUNDLE_BYTES = 32 * 1024 * 1024 }
 }

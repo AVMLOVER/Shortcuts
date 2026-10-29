@@ -19,8 +19,8 @@ android {
         applicationId = "com.germanium.shortcuts"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10003
-        versionName = "1.0.3"
+        versionCode = 10004
+        versionName = "1.0.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testApplicationId = providers.gradleProperty("shortcuts.testApplicationId").orElse("com.germanium.shortcuts.test").get()
     }
@@ -66,6 +66,7 @@ val buildRust = tasks.register<Exec>("buildRust") {
 tasks.named("preBuild").configure { dependsOn(buildRust) }
 dependencies {
     implementation(project(":core"))
+    implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.sharetarget:sharetarget:1.2.0")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))

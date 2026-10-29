@@ -3,8 +3,8 @@ package com.germanium.shortcuts.core
 enum class InputOrigin { NONE, SYSTEM_SHARE, SHORTCUT }
 
 object InputProvenance {
-    private val inputActions = setOf("get_text_from_input", "get_images_from_input", "get_urls_from_input", "get_files_from_input", "get_numbers_from_input")
-    private val implicitInput = inputActions + setOf("calculate", "calculate_expression", "output", "append_text", "encode_base64", "decode_base64", "encode_url", "decode_url", "hash_text", "count", "statistics", "join_text", "round_number", "factor_number")
+    private val inputActions = setOf("get_text_from_input", "get_images_from_input", "get_urls_from_input", "get_files_from_input", "get_numbers_from_input", "get_dictionary_from_input")
+    private val implicitInput = inputActions + setOf("calculate", "calculate_expression", "output", "append_text", "encode_base64", "decode_base64", "encode_url", "decode_url", "hash_text", "count", "statistics", "join_text", "round_number", "factor_number", "encode_json", "adjust_date", "date_difference", "rotate_image", "convert_image", "generate_qr", "read_barcode", "format_filesize")
     fun outputOrigins(step: ActionStep, c: RunContext): Set<InputOrigin> = when (step.type) {
         "share_input" -> if (c.inputOrigin == InputOrigin.NONE) emptySet() else setOf(c.inputOrigin)
         "create_variable", "set_variable", "append_variable" -> c.variables.origins(step.parameters["name"].orEmpty())

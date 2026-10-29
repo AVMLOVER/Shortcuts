@@ -65,15 +65,16 @@ class XmlSettingsRepository(private val file: File, private val codec: XmlCodec 
 }
 
 private fun File.readBounded(): ByteArray = inputStream().use { stream ->
-    val buffer = ByteArray(XmlCodec.MAX_BYTES + 1)
-    var count = 0
-    while (count < buffer.size) {
-        val read = stream.read(buffer, count, buffer.size - count)
+    require(length() <= XmlCodec.MAX_BYTES) { throw Problem("err_io") }
+    val buffer = ByteArray(8192)
+    val output = java.io.ByteArrayOutputStream(minOf(length(),65536).toInt())
+    while (true) {
+        val read = stream.read(buffer)
         if (read < 0) break
-        count += read
+        require(output.size().toLong()+read <= XmlCodec.MAX_BYTES) { throw Problem("err_io") }
+        output.write(buffer,0,read)
     }
-    require(count <= XmlCodec.MAX_BYTES) { throw Problem("err_io") }
-    buffer.copyOf(count)
+    output.toByteArray()
 }
 
 /** Same-directory atomic replacement; failure leaves the previously committed document untouched. */

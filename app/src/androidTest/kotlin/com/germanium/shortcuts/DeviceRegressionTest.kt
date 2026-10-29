@@ -675,16 +675,18 @@ class DeviceRegressionTest {
         val previousMode = app.getSystemService(android.app.AppOpsManager::class.java).unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, android.os.Process.myUid(), app.packageName)
         fun overlayMode(mode: String) { automation.executeShellCommand("appops set ${app.packageName} SYSTEM_ALERT_WINDOW $mode").use { android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes() } }
         app.shortcuts.save(source)
+        val widgetId = 103000 + (System.nanoTime() % 100000).toInt()
+        ShortcutWidgets.save(app, widgetId, listOf(source.id))
         try {
             overlayMode("allow")
             ActivityScenario.launch<MainActivity>(Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)).use {
                 compose.waitUntil(15000) { compose.onAllNodesWithTag("floating_navigation").fetchSemanticsNodes().isNotEmpty() }
-                onMain { androidx.core.content.ContextCompat.startForegroundService(app, Intent(app, WidgetRunService::class.java).putExtra("shortcutId", source.id)) }
+                onMain { androidx.core.content.ContextCompat.startForegroundService(app, Intent(app, WidgetRunService::class.java).putExtra("shortcutId", source.id).putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)) }
                 compose.waitUntil(15000) { compose.onAllNodesWithText("Widget overlay regression output").fetchSemanticsNodes().isNotEmpty() }
                 capture("widget-overlay")
             }
         } finally {
-            app.stopService(Intent(app, WidgetRunService::class.java)); app.runs.forget(source.id); app.shortcuts.delete(source.id)
+            app.stopService(Intent(app, WidgetRunService::class.java)); app.runs.forget(source.id); app.shortcuts.delete(source.id); ShortcutWidgets.remove(app, widgetId)
             overlayMode(when (previousMode) { android.app.AppOpsManager.MODE_ALLOWED -> "allow"; android.app.AppOpsManager.MODE_IGNORED -> "ignore"; android.app.AppOpsManager.MODE_ERRORED -> "deny"; else -> "default" })
         }
         Unit

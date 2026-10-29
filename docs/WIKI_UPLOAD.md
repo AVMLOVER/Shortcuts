@@ -1,6 +1,6 @@
 # Shortcuts Wiki 上传说明
 
-本套文档包含 18 个正文页面，以及 `_Sidebar.md` 和 `_Footer.md`，提供首页、侧栏和页脚。内容来自当前项目实现，没有更新日志。
+本套文档包含 19 个正文页面，以及 `_Sidebar.md` 和 `_Footer.md`，提供首页、侧栏和页脚。内容来自当前项目实现，没有更新日志。
 
 Wiki 源文件已与 README 一起保存在主仓库 `docs/wiki/`，单独的 GitHub Wiki 由你上传。GitHub Wiki 使用独立仓库，推送项目主仓库不会自动发布 Wiki。
 

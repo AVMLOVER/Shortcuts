@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
 import java.io.File
 import java.nio.file.Files
 import java.nio.charset.CodingErrorAction
@@ -11,6 +12,28 @@ import java.nio.ByteBuffer
 
 class WorkspaceFiles(private val root: File) {
     private val mutex = Mutex()
+    fun streamFile(path: String): File = resolve("",path).also { require(it.isFile) { throw Problem("err_io") } }
+    suspend fun importArchive(folder: String, entries: List<ArchiveEntry>): Value = withContext(Dispatchers.IO) { mutex.withLock {
+        require(entries.isNotEmpty() && entries.size <= 256 && entries.sumOf { it.bytes.size.toLong() } <= ZipValues.MAX_BYTES) { throw Problem("err_size") }
+        entries.forEach { ZipValues.safeName(it.name) }
+        val destination = resolve(folder, "archive-${java.util.UUID.randomUUID()}")
+        require(!destination.exists() && destination.mkdirs()) { throw Problem("err_io") }
+        try {
+            val paths = entries.map { item ->
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                val target = File(destination,item.name).canonicalFile
+                require(target.toPath().startsWith(destination.canonicalFile.toPath())) { throw Problem("err_path") }
+                val relative = root.canonicalFile.toPath().relativize(target.toPath()).toString().replace('\\','/')
+                require(relative.length <= 500) { throw Problem("err_path") }
+                atomicWrite(target,item.bytes)
+                Value.Text(relative)
+            }
+            Value.ListValue(paths)
+        } catch (e: Exception) {
+            require(destination.canonicalFile.toPath().startsWith(root.canonicalFile.toPath()) && destination.canonicalFile != root.canonicalFile)
+            destination.deleteRecursively(); throw e
+        }
+    } }
     private fun resolve(folder: String, name: String = ""): File {
         val normalizedFolder = folder.replace('\\', '/').trim('/')
         val normalizedName = name.replace('\\', '/')

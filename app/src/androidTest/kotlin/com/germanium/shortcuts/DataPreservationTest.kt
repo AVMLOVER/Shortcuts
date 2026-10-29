@@ -17,7 +17,7 @@ class DataPreservationTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private fun destination(): File {
         val name = InstrumentationRegistry.getArguments().getString("snapshotDir") ?: error("Pass snapshotDir")
-        require(name.matches(Regex("codex-verify102-[0-9]+")))
+        require(name.matches(Regex("codex-verify(?:102|104)-[0-9]+")))
         return File(context.getExternalFilesDir(null), name).also { check(it.isDirectory || it.mkdirs()) }
     }
     private fun roots() = linkedMapOf("internal" to context.filesDir, "workspace" to File(context.getExternalFilesDir(null), "workspace"))

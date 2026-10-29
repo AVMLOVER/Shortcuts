@@ -62,7 +62,8 @@ class AutomationRepository(private val directory: File) {
             val root = builder.parse(InputSource(StringReader(text))).documentElement
             require(root.tagName == "automation" && root.getAttribute("version") == "1") { throw Problem("err_xml") }
             val parameters = linkedMapOf<String, String>()
-            for (index in 0 until root.childNodes.length) { val child = root.childNodes.item(index) as? org.w3c.dom.Element ?: continue; require(child.tagName == "parameter" && child.getAttribute("key") !in parameters) { throw Problem("err_xml") }; parameters[child.getAttribute("key")] = child.textContent }
+            val children=root.childNodes
+            for (index in 0 until children.length) { val child = children.item(index) as? org.w3c.dom.Element ?: continue; require(child.tagName == "parameter" && child.getAttribute("key") !in parameters) { throw Problem("err_xml") }; parameters[child.getAttribute("key")] = child.textContent }
             AutomationRule(root.getAttribute("id"), root.getAttribute("name"), root.getAttribute("shortcutId"), TriggerKind.valueOf(root.getAttribute("trigger")), parameters,
                 root.getAttribute("enabled").toBooleanStrict(), root.getAttribute("lastMatched").toBooleanStrict(), root.getAttribute("lastToken")).also { require(it.id == file.nameWithoutExtension) { throw Problem("err_xml") } }
         }

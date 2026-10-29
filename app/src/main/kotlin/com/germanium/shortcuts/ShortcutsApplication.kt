@@ -26,6 +26,9 @@ class ShortcutsApplication : Application() {
     val workspace by lazy { com.germanium.shortcuts.core.WorkspaceFiles(File(getExternalFilesDir(null) ?: filesDir, "workspace")) }
     val runs by lazy { RunCoordinator(this) }
     val monitorRunning = kotlinx.coroutines.flow.MutableStateFlow(false)
+    @Volatile var widgetInteractionHandler: ((Interaction) -> Boolean)? = null
+    @Volatile var widgetInteractionResolved: (() -> Unit)? = null
+    private var widgetOverlayAllowed = false
     @Volatile private var resumedActivity: WeakReference<Activity>? = null
     fun foreground() = resumedActivity?.get()
     val actions by lazy { AndroidActions(this, interactions) { resumedActivity?.get() } }
@@ -42,10 +45,18 @@ class ShortcutsApplication : Application() {
         scope.launch { runs.state.map { it.runningId }.distinctUntilChanged().collect { id ->
             try { ShortcutWidgets.updateAll(this@ShortcutsApplication, id) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; diagnostics.trace("widget_state_failed", e) }
         } }
-        interactions.onPending = { if (foreground() == null) showInteractionNotification(this) }
-        interactions.onResolved = { getSystemService(android.app.NotificationManager::class.java).cancel(2002) }
+        widgetOverlayAllowed = android.provider.Settings.canDrawOverlays(this)
+        interactions.onPending = { request ->
+            val onDesktop = runs.state.value.fromWidget && widgetInteractionHandler?.invoke(request) == true
+            if (!onDesktop && foreground() == null) showInteractionNotification(this)
+        }
+        interactions.onResolved = { getSystemService(android.app.NotificationManager::class.java).cancel(2002); widgetInteractionResolved?.invoke() }
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
-            override fun onActivityResumed(activity: Activity) { resumedActivity = WeakReference(activity); externalReturn.resume() }
+            override fun onActivityResumed(activity: Activity) {
+                resumedActivity = WeakReference(activity); externalReturn.resume()
+                val allowed = android.provider.Settings.canDrawOverlays(this@ShortcutsApplication)
+                if (allowed != widgetOverlayAllowed) { widgetOverlayAllowed = allowed; scope.launch { runCatching { ShortcutWidgets.updateAll(this@ShortcutsApplication) } } }
+            }
             override fun onActivityPaused(activity: Activity) { if (resumedActivity?.get() === activity) { resumedActivity = null; externalReturn.leave() } }
             override fun onActivityDestroyed(activity: Activity) { if (resumedActivity?.get() === activity) resumedActivity = null }
             override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit

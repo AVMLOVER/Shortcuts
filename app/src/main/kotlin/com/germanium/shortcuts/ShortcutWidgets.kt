@@ -53,9 +53,11 @@ internal object ShortcutWidgets {
                 item.setViewVisibility(R.id.widget_progress, if (running) View.VISIBLE else View.GONE)
                 item.setViewVisibility(R.id.widget_idle_ring, if (running) View.GONE else View.VISIBLE)
                 item.setContentDescription(R.id.widget_item, shortcut.name)
-                val launch = Intent(context, WidgetRunActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra("shortcutId", shortcut.id)
+                val allowed = android.provider.Settings.canDrawOverlays(context)
+                val launch = Intent(context, if (allowed) WidgetRunService::class.java else WidgetPermissionActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra("shortcutId", shortcut.id)
                     .setData(android.net.Uri.parse("shortcuts://widget/$id/${shortcut.id}"))
-                item.setOnClickPendingIntent(R.id.widget_item, PendingIntent.getActivity(context, id, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                item.setOnClickPendingIntent(R.id.widget_item, if (allowed) PendingIntent.getForegroundService(context,id,launch,flags) else PendingIntent.getActivity(context,id,launch,flags))
                 row.addView(R.id.widget_row, item)
             }
             root.addView(R.id.widget_root, row)

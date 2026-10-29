@@ -52,6 +52,11 @@ import kotlin.math.roundToInt
                 FilledTonalButton(onClick = { picker.launch(arrayOf("image/*")) }) { Text(t("choose_image")) }
             }
             when (request.operation) {
+                "rotate_image" -> ImageSlider("image_rotation", options["rotation"], 90, -360f..360f) { change("rotation", it) }
+                "convert_image" -> {
+                    ImageChoices("image_format", options["imageFormat"] ?: "png", listOf("png" to "format_png", "jpeg" to "format_jpeg", "webp" to "format_webp")) { change("imageFormat", it) }
+                    if (options["imageFormat"] != "png") ImageSlider("image_quality", options["quality"], 90, 0f..100f) { change("quality", it) }
+                }
                 "resize_image" -> {
                     ImageSlider("image_width", options["width"], 1024, 0f..16384f) { change("width", it) }
                     ImageSlider("image_height", options["height"], 0, 0f..16384f) { change("height", it) }

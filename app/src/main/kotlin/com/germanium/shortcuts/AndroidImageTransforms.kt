@@ -21,7 +21,7 @@ internal class AndroidImageTransforms(private val app: ShortcutsApplication) {
         val bitmap = render(operation, source, chosen)
         try {
             return withContext(Dispatchers.IO) {
-                val lossy = operation == "compress_image"
+                val lossy = operation == "compress_image" || operation == "convert_image" && chosen["imageFormat"] != "png"
                 val webp = lossy && chosen["imageFormat"] == "webp"
                 val format = if (!lossy) Bitmap.CompressFormat.PNG else if (!webp) Bitmap.CompressFormat.JPEG else if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else { @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP }
                 val quality = if (lossy) (chosen["quality"] ?: "80").toIntOrNull()?.takeIf { it in 0..100 } ?: throw Problem("err_number") else 100
@@ -79,6 +79,16 @@ internal class AndroidImageTransforms(private val app: ShortcutsApplication) {
                 return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { pending = it }
             }
             when (operation) {
+                "rotate_image" -> {
+                    val rotation = integer("rotation",90,-360,360)
+                    val matrix = Matrix().apply { setRotate(rotation.toFloat()) }
+                    val bounds = RectF(0f,0f,base.width.toFloat(),base.height.toFloat()); matrix.mapRect(bounds)
+                    val width = kotlin.math.ceil(bounds.width().toDouble()-0.0001).toInt().coerceAtLeast(1)
+                    val height = kotlin.math.ceil(bounds.height().toDouble()-0.0001).toInt().coerceAtLeast(1)
+                    val result = output(width,height)
+                    try { Canvas(result).apply { translate(-bounds.left,-bounds.top); concat(matrix); drawBitmap(base,0f,0f,paint) }; result }
+                    catch (e: Exception) { result.recycle(); throw e }
+                }
                 "resize_image" -> {
                     val requestedWidth = integer("width", 1024, 0, 16384)
                     val requestedHeight = integer("height", 0, 0, 16384)
@@ -93,15 +103,16 @@ internal class AndroidImageTransforms(private val app: ShortcutsApplication) {
                     val result = output((width * previewScale).roundToInt().coerceAtLeast(1), (height * previewScale).roundToInt().coerceAtLeast(1))
                     try { Canvas(result).drawBitmap(base, null, Rect(0, 0, result.width, result.height), paint); result } catch (e: Exception) { result.recycle(); throw e }
                 }
-                "compress_image" -> {
+                "compress_image", "convert_image" -> {
                     val quality = integer("quality", 80, 0, 100)
                     val webp = options["imageFormat"] == "webp"
-                    require(options["imageFormat"].orEmpty() in listOf("", "jpeg", "webp")) { throw Problem("err_image") }
+                    val png = options["imageFormat"] == "png"
+                    require(options["imageFormat"].orEmpty() in listOf("", "jpeg", "webp", "png")) { throw Problem("err_image") }
                     val result = output(base.width, base.height)
                     try {
-                        Canvas(result).apply { if (!webp) drawColor(Color.WHITE); drawBitmap(base, 0f, 0f, paint) }
+                        Canvas(result).apply { if (!webp && !png) drawColor(Color.WHITE); drawBitmap(base, 0f, 0f, paint) }
                         if (preview) {
-                            val format = if (!webp) Bitmap.CompressFormat.JPEG else if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else { @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP }
+                            val format = if (png) Bitmap.CompressFormat.PNG else if (!webp) Bitmap.CompressFormat.JPEG else if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else { @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP }
                             val data = ByteArrayOutputStream().use { check(result.compress(format, quality, it)); it.toByteArray() }
                             val compressed = BitmapFactory.decodeByteArray(data, 0, data.size) ?: throw Problem("err_image")
                             result.recycle(); pending = compressed; compressed

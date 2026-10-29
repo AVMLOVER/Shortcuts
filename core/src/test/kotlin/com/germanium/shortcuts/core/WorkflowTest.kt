@@ -61,7 +61,7 @@ class WorkflowTest {
         assertEquals("12[1]12[2]", result.output); assertFalse(result.variables.containsKey("repeat_index"))
     }
     @Test fun loopsHaveAnExecutionLimit() = runTest {
-        val body = List(6) { action("output") }
+        val body = List(51) { action("output") }
         val result = run(listOf(action("repeat", "count" to "1000", branches = listOf(ActionBranch("body", steps = body)))))
         assertEquals(RunStatus.FAILED, result.status); assertEquals("err_step_limit", result.error)
     }

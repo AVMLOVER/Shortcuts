@@ -18,3 +18,4 @@
 - [小组件与磁贴](Widgets-and-Tiles.md)
 - [构建与 CI](Build-and-CI.md)
 - [常见问题](FAQ.md)
+- [设备操作与 Root](Device-and-Root.md)

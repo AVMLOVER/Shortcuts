@@ -14,7 +14,7 @@ class Version103MigrationTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     @Test fun verifyOriginalDataAfterMigrationAndTests() {
         val name=InstrumentationRegistry.getArguments().getString("snapshotDir") ?: error("Pass snapshotDir")
-        require(name.matches(Regex("codex-verify102-[0-9]+")))
+        require(name.matches(Regex("codex-verify(?:102|104)-[0-9]+")))
         val snapshot=File(context.getExternalFilesDir(null),name)
         val baseline=JSONObject(File(snapshot,"baseline.json").readText());val hashes=baseline.getJSONObject("files")
         val roots=mapOf("internal" to context.filesDir,"workspace" to File(context.getExternalFilesDir(null),"workspace"))
@@ -24,7 +24,7 @@ class Version103MigrationTest {
             if (listOf("internal/shortcuts/","internal/folders/","internal/drafts/").any { path.startsWith(it) }) {
                 val before=zip.getInputStream(zip.getEntry(path)).use { it.readBytes() }
                 assertEquals("Migration changed workflow content",XmlCodec().decode(before),XmlCodec().decode(current.readBytes()))
-                if (!path.startsWith("internal/drafts/")) assertTrue(current.readText().contains("appVersion=\"10003\""))
+                if (!path.startsWith("internal/drafts/")) assertTrue(current.readText().contains("appVersion=\"${SHORTCUTS_VERSION}\""))
             } else {
                 val hash=MessageDigest.getInstance("SHA-256").digest(current.readBytes()).joinToString("") { (it.toInt() and 255).toString(16).padStart(2,'0') }
                 assertEquals("Original file changed",hashes.getString(path),hash)

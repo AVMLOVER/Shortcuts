@@ -4,6 +4,7 @@ import java.math.BigDecimal
 
 sealed interface Value {
     fun text(): String
+    data object Null : Value { override fun text() = "" }
     data class Text(val value: String) : Value { override fun text() = value }
     data class Number(val value: BigDecimal) : Value {
         init { require(value.precision() <= 1024 && value.scale() in -1024..1024) { throw Problem("err_number") } }
@@ -25,6 +26,7 @@ sealed interface Value {
 }
 private fun containerDepth(values: Collection<Value>): Int = 1 + (values.maxOfOrNull { when (it) { is Value.Dictionary -> containerDepth(it.entries.values); is Value.ListValue -> containerDepth(it.items); else -> 0 } } ?: 0)
 fun Value.number(): BigDecimal = when (this) {
+    Value.Null -> throw Problem("err_number")
     is Value.Number -> value
     is Value.Text -> parseNumber(value)
     is Value.BooleanValue -> throw Problem("err_number")

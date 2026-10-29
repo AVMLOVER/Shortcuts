@@ -47,7 +47,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
         // Repeated bodies (including child calls) share a separate bounded allowance.
         // Leaving a conditional loop restores the ordinary call-chain budget.
         fun step() {
-            require(if (conditionalDepth > 0) ++conditionalSteps <= MAX_CONDITIONAL_STEPS else ++ordinarySteps <= 5000) { throw Problem("err_step_limit") }
+            require(if (conditionalDepth > 0) ++conditionalSteps <= MAX_CONDITIONAL_STEPS else ++ordinarySteps <= MAX_RUN_STEPS) { throw Problem("err_step_limit") }
         }
     }
     suspend fun run(shortcut: Shortcut, mode: ExecutionMode, input: String = "", onStep: (String) -> Unit = {}, onTrace: ((RunTrace) -> Unit)? = null, angleUnit: AngleUnit = AngleUnit.DEGREES, typedInput: Value? = null, inputOrigin: InputOrigin = InputOrigin.NONE): RunResult {
@@ -57,7 +57,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
     }
     private suspend fun execute(shortcut: Shortcut, mode: ExecutionMode, originalInput: Value, source: InputOrigin, onStep: (String) -> Unit, onTrace: ((RunTrace) -> Unit)?, angleUnit: AngleUnit, budget: Budget, ancestors: Set<String>): RunResult {
         require(ancestors.size < 16 && shortcut.uuid !in ancestors) { throw Problem("err_call_cycle") }
-        val results = mutableListOf<StepResult>(); val variables = VariableScope()
+        val results = java.util.ArrayDeque<StepResult>(); val variables = VariableScope()
         val stack = java.util.ArrayDeque<Frame>()
         var currentStep: String? = null; var executed = 0; var value: Value = originalInput
         var origins = if (source == InputOrigin.NONE) emptySet() else setOf(source)
@@ -72,7 +72,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                 step.parameters["resultVariable"]?.takeIf(String::isNotBlank)?.let { variables.set(it, value, origins) }
             }
             results += StepResult(step.id, step.type, value, properties); historyLength += value.text().length
-            while (results.size > 1 && (historyLength > 2097152 || results.size > 1000)) { historyLength -= results.removeAt(0).output.length; historyTruncated = true }
+            while (results.size > 1 && (historyLength > 2097152 || results.size > 1000)) { historyLength -= results.removeFirst().output.length; historyTruncated = true }
             trace("step_end", step)
         }
         fun restore(loop: Loop) {
@@ -81,7 +81,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
             if (loop.items != null) { if (loop.previousItem == null) variables.remove("repeat_item") else variables.set("repeat_item", loop.previousItem, loop.previousItemOrigins) }
         }
         fun unwind() { stack.toList().asReversed().filterIsInstance<Loop>().forEach { runCatching { restore(it) } }; stack.clear() }
-        fun success() = RunResult(RunStatus.SUCCEEDED, results, variables = variables.snapshot(), executedCount = executed, historyTruncated = historyTruncated, finalValue = value, valueOrigins = origins)
+        fun success() = RunResult(RunStatus.SUCCEEDED, results.toList(), variables = variables.snapshot(), executedCount = executed, historyTruncated = historyTruncated, finalValue = value, valueOrigins = origins)
         try {
             trace("run_start"); stack.addLast(Block(compile(shortcut.steps)))
             while (stack.isNotEmpty()) {
@@ -161,12 +161,12 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
             }
             trace("run_success"); return success()
         } catch (e: CancellationException) { unwind(); trace("run_cancelled"); throw e
-        } catch (e: Exception) { unwind(); trace("run_failed", failure = e); return RunResult(RunStatus.FAILED, results, e.message ?: e.javaClass.simpleName, variables.snapshot(), currentStep, e, executed, historyTruncated)
+        } catch (e: Exception) { unwind(); trace("run_failed", failure = e); return RunResult(RunStatus.FAILED, results.toList(), e.message ?: e.javaClass.simpleName, variables.snapshot(), currentStep, e, executed, historyTruncated)
         }
     }
     companion object {
         const val MAX_CONDITIONAL_REPEATS = 100_000
-        private const val MAX_CONDITIONAL_STEPS = MAX_CONDITIONAL_REPEATS * 1000
+        private const val MAX_CONDITIONAL_STEPS = MAX_CONDITIONAL_REPEATS * MAX_WORKFLOW_ACTIONS
         val SOURCE_CONDITIONS = setOf("source_system_share", "source_shortcut")
         val CONDITIONS = setOf("equals", "not_equals", "contains", "not_contains", "greater", "less", "greater_equal", "less_equal", "is_empty", "is_not_empty", "is_true", "matches")
     }
@@ -179,7 +179,7 @@ internal class Handler(
     override fun validate(parameters: Map<String, String>) = check(parameters)
     override suspend fun execute(parameters: Map<String, String>, context: RunContext) = run(parameters, context)
 }
-fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = ActionRegistry(contentActions(platform) + extraActions(platform) + libraryActions(platform) + listOf(
+fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = ActionRegistry(version104Actions(platform) + contentActions(platform) + extraActions(platform) + libraryActions(platform) + listOf(
     Handler("text", { require(it.containsKey("value")) { throw Problem("err_invalid_data") } }) { p, c -> c.resolve(p.getValue("value")) },
     Handler("append_text", { require(it.containsKey("value")) { throw Problem("err_invalid_data") } }) { p, c -> Value.Text(c.text(p, "target", "{{input}}") + c.text(p, "value")) },
     Handler("delay", { p ->

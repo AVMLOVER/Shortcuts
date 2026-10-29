@@ -68,7 +68,7 @@ class ConditionalRepeatTest {
         val tick = Handler("tick") { _, _ -> Value.Text("x") }
         val engine = ShortcutEngine(ActionRegistry(listOf(tick)))
         val conditional = loop(operator = "is_not_empty", body = listOf(ActionStep(type = "tick")))
-        val ordinary = ActionStep(type = "repeat", parameters = mapOf("count" to "1000"), branches = listOf(ActionBranch("body", steps = List(5) { ActionStep(type = "tick") })))
+        val ordinary = ActionStep(type = "repeat", parameters = mapOf("count" to "1000"), branches = listOf(ActionBranch("body", steps = List(51) { ActionStep(type = "tick") })))
         val result = engine.run(Shortcut(name = "Restored budget", steps = listOf(conditional, ordinary)), ExecutionMode.STANDARD)
         assertEquals(RunStatus.FAILED, result.status); assertEquals("err_step_limit", (result.failure as Problem).key)
     }
