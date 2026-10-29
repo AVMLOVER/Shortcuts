@@ -7,7 +7,7 @@
     <string name="ui_settings">設定</string>
     <string name="ui_home_subtitle">讓日常操作，一步完成。</string>
     <string name="ui_new_shortcut">新增捷徑</string>
-    <string name="ui_edit_shortcut">編輯捷徑</string>
+    <string name="ui_edit_shortcut">編輯</string>
     <string name="ui_name">名稱</string>
     <string name="ui_done">完成</string>
     <string name="ui_save">儲存</string>
@@ -699,4 +699,27 @@
     <string name="ui_err_http_method">請選擇 GET、POST、PUT、PATCH 或 DELETE。</string>
     <string name="ui_err_http_status">伺服器回傳了未成功的 HTTP 狀態。</string>
     <string name="ui_err_http_redirect">URL 重新導向無效、形成循環或超過八次跳轉。</string>
+    <string name="ui_action_run_shortcut">執行其他捷徑</string>
+    <string name="ui_action_return">返回</string>
+    <string name="ui_action_end_shortcut">結束捷徑</string>
+    <string name="ui_action_get_application_list">取得應用程式列表</string>
+    <string name="ui_shortcut_selection">執行哪個捷徑</string>
+    <string name="ui_shortcut_preset">預先設定</string>
+    <string name="ui_shortcut_input">輸入內容</string>
+    <string name="ui_source_system_share">來源於系統分享</string>
+    <string name="ui_source_shortcut">來源於其他捷徑</string>
+    <string name="ui_err_shortcut_missing">指定的捷徑不存在，執行已終止。</string>
+    <string name="ui_err_call_cycle">捷徑出現循環呼叫，或呼叫層級超過 16 層。</string>
+    <string name="ui_err_child_shortcut">被呼叫的捷徑執行失敗，主捷徑已終止。</string>
+    <string name="ui_err_future_shortcut">此捷徑要求 Shortcuts 版本號至少為 %1$d，目前版本無法開啟。</string>
+    <string name="ui_application_list_permission">取得應用程式列表權限</string>
+    <string name="ui_application_list_permission_hint">由 Android 與廠商隱私設定管理，點按查看本軟體權限設定。</string>
+    <string name="ui_calendar_read_permission">讀取行事曆權限</string>
+    <string name="ui_calendar_write_permission">寫入行事曆權限</string>
+    <string name="ui_application_list_format">應用程式列表輸出格式</string>
+    <string name="ui_application_label">應用程式名稱</string>
+    <string name="ui_application_label_package">名稱與套件名稱</string>
+    <string name="ui_application_list_offset">起始位置（從 0 開始）</string>
+    <string name="ui_application_list_limit">最多輸出項目數</string>
+    <string name="ui_application_list_hint">輸出文字列表，每批最多 256 項。調整起始位置可繼續取得，可選擇包含系統應用程式。</string>
 </resources>

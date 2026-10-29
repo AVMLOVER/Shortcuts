@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun ToolIcon(icon: Int, label: String, enabled: Boolean = true, danger: Boolean = false, modifier: Modifier = Modifier, click: () -> Unit) {
     TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(), tooltip = { PlainTooltip { Text(t(label)) } }, state = rememberTooltipState()) {
-        IconButton(onClick = click, enabled = enabled, modifier = modifier) { Icon(painterResource(icon), t(label), tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = click, enabled = enabled, modifier = modifier) { Icon(painterResource(icon), t(label), tint = if (!enabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 @Composable internal fun HomeResult(result: RunResult) {

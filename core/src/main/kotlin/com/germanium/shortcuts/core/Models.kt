@@ -36,8 +36,10 @@ data class Shortcut(
     val icon: String = "layers",
     val color: String = "purple",
     val folderId: String = "",
+    val uuid: String = stableShortcutUuid(id),
 ) {
     init {
+        require(runCatching { UUID.fromString(uuid).toString() == uuid }.getOrDefault(false)) { throw Problem("err_invalid_data") }
         require(id.matches(Regex("[a-zA-Z0-9_-]{1,80}"))) { throw Problem("err_invalid_data") }
         require(name.isNotBlank() && name.length <= 200) { throw Problem("err_invalid_data") }
         require(icon.matches(Regex("[a-z][a-z0-9_]{0,39}")) && (color.matches(Regex("[a-z][a-z0-9_]{0,39}")) || color.matches(Regex("#[0-9a-fA-F]{6}")))) { throw Problem("err_invalid_data") }
@@ -62,3 +64,6 @@ object DemoShortcut {
         ),
     )
 }
+
+const val SHORTCUTS_VERSION = 10003
+fun stableShortcutUuid(id: String): String = if (id.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))) id else UUID.nameUUIDFromBytes(("com.germanium.shortcuts:" + id).toByteArray(Charsets.UTF_8)).toString()

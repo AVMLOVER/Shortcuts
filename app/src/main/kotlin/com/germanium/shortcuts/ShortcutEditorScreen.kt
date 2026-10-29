@@ -132,7 +132,10 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     }
     fun beginChoosing() { if (focused == null) return; originIndex = listState.firstVisibleItemIndex; originOffset = listState.firstVisibleItemScrollOffset; keyboard?.hide(); focusManager.clearFocus(); variables.inspected = null; choosingOutput = true }
     fun leave() { if (choosingOutput) { restoreInput(); return }; if (variables.inspected != null) { variables.inspected = null; return }; if (busy) { model.cancelRun(); return }; if (editor.dirty) confirmLeave = true else model.closeEditor() }
-    fun parameter(step: ActionStep, key: String, value: String) = model.update(step.copy(parameters = step.parameters + (key to value)))
+    fun parameter(step: ActionStep, key: String, value: String) {
+        val resetCondition = step.type == "if" && key == "left" && step.parameters["operator"] in ShortcutEngine.SOURCE_CONDITIONS && !InputProvenance.isSharedReference(editor.steps, step.id, value)
+        model.update(step.copy(parameters = step.parameters + (key to value) + if (resetCondition) mapOf("operator" to "equals") else emptyMap()))
+    }
     fun removeAction(id: String) { focused = null; variables.inspected = null; model.remove(id) }
     val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val selectedId = reselect; val owner = targetOwner; val branch = targetBranch
@@ -280,6 +283,8 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     }
                                 } else {
                                 definition?.fields?.forEach { field ->
+                                    if (step.type == "run_shortcut" && field.key == "shortcutUuid" && step.parameters["selection"] == "ask") return@forEach
+                                    if (step.type == "if" && field.key == "right" && step.parameters["operator"] in ShortcutEngine.SOURCE_CONDITIONS) return@forEach
                                     if (step.type == "get_url") {
                                         val method = step.parameters["method"] ?: "GET"
                                         val bodyType = step.parameters["bodyType"] ?: "json"
@@ -304,15 +309,17 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                     else if (step.type == "comment" && field.key == "note") OutlinedTextField(step.parameters[field.key].orEmpty(), { parameter(step, field.key, it) }, label = { Text(t(fieldLabel)) }, enabled = !busy, modifier = Modifier.fillMaxWidth())
                                     else if (step.type == "make_pdf" && field.key == "saveDirectoryUri") PdfSaveDirectory(step.parameters[field.key].orEmpty(), !busy, { parameter(step, field.key, it) }, model::report)
                                     else if (field.key == "zone") TimeZoneParameter(step.parameters[field.key].orEmpty(), !busy) { parameter(step, field.key, it) }
+                                    else if (step.type == "run_shortcut" && field.key == "shortcutUuid") ShortcutTargetPicker(step.parameters[field.key].orEmpty(), state.items, !busy) { parameter(step, field.key, it) }
                                     else if (field.choices.isNotEmpty()) {
+                                        val choices = field.choices + if (step.type == "if" && field.key == "operator" && InputProvenance.isSharedReference(editor.steps, step.id, step.parameters["left"] ?: "{{input}}")) ShortcutEngine.SOURCE_CONDITIONS.map { it to it } else emptyList()
                                         Text(t(fieldLabel), style = MaterialTheme.typography.labelLarge)
-                                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) { field.choices.forEach { (key, label) -> FilterChip((step.parameters[field.key] ?: field.initial) == key, {
+                                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) { choices.forEach { (key, label) -> FilterChip((step.parameters[field.key] ?: field.initial) == key, {
                                             if (field.key == "unit" && key != (step.parameters["unit"] ?: "milliseconds")) {
                                                 val amountKey = if (step.type == "delay") "milliseconds" else "duration"
                                                 val converted = step.parameters[amountKey]?.toBigDecimalOrNull()?.let { if (key == "seconds") it.divide(1000.toBigDecimal()) else it.multiply(1000.toBigDecimal()) }?.stripTrailingZeros()?.toPlainString()
                                                 model.update(step.copy(parameters = step.parameters + ("unit" to key) + if (converted == null) emptyMap() else mapOf(amountKey to converted)))
                                             } else parameter(step, field.key, key)
-                                        }, enabled = !busy, label = { Text(if (label in Texts.ids) t(label) else label) }) } }
+                                        }, enabled = !busy, modifier = Modifier.testTag("choice_${step.id}_${field.key}_$key"), label = { Text(if (label in Texts.ids) t(label) else label) }) } }
                                     } else {
                                         if (step.type == "get_variable" && field.key == "name") {
                                             val sourcePath = TreeEdits.pathTo(editor.steps, step.id).orEmpty().dropLast(1)
@@ -363,6 +370,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (step.type == "screenshot") Text(t("capture_detail"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "generate_uuid") Text(t("seed_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "wait_return") Text(t("wait_return_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type == "get_application_list") Text(t("application_list_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "share_input") Text(t("share_input_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type in listOf("mask_image", "overlay_image", "flip_image", "combine_images", "resize_image", "compress_image", "text_image")) Text(t("image_transform_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "factor_number") Text(t("factor_hint"), style = MaterialTheme.typography.bodySmall)
@@ -390,10 +398,10 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (step.type == "menu") OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch(label = context.tr("menu_item") + " ${step.branches.size + 1}"))) }, enabled = !busy && step.branches.size < 30) { Text(t("add_menu_item")) }
                                 observed[step.id]?.let { result -> Text(t("result") + ": " + result.output.take(512), style = MaterialTheme.typography.bodySmall) }
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(onClick = { model.move(step.id, -1) }, enabled = !busy && row.index > 0) { Text(t("move_up")) }
-                                    TextButton(onClick = { model.move(step.id, 1) }, enabled = !busy && row.index < row.size - 1) { Text(t("move_down")) }
-                                    TextButton(onClick = { model.editSteps(TreeEdits.copyAfter(editor.steps, step.id)) }, enabled = !busy && flatSteps.size * 2 < 1000) { Text(t("duplicate")) }
-                                    TextButton(onClick = { removeAction(step.id) }, enabled = !busy, modifier = Modifier.testTag("remove_action_${step.id}")) { Text(t("remove")) }
+                                    ToolIcon(R.drawable.ic_up, "move_up", !busy && row.index > 0, modifier = Modifier.testTag("move_up_${step.id}")) { model.move(step.id, -1) }
+                                    ToolIcon(R.drawable.ic_down, "move_down", !busy && row.index < row.size - 1, modifier = Modifier.testTag("move_down_${step.id}")) { model.move(step.id, 1) }
+                                    ToolIcon(R.drawable.ic_copy, "duplicate", !busy && flatSteps.size + allSteps(listOf(step)).size <= 1000) { model.editSteps(TreeEdits.copyAfter(editor.steps, step.id)) }
+                                    ToolIcon(R.drawable.ic_close, "remove", !busy, danger = true, modifier = Modifier.testTag("remove_action_${step.id}")) { removeAction(step.id) }
                                 }
                                 }
                             }

@@ -44,7 +44,7 @@ class ShareReceiverModel(application: android.app.Application) : AndroidViewMode
         val actual = app.shortcuts.list().find { it.id == shortcut.id } ?: throw Problem("err_shared_input")
         val input = state.value.payload ?: throw Problem("err_shared_input")
         require(ContentInput.accepts(actual, input)) { throw Problem("err_shared_input") }
-        if (app.runs.start(actual, app.settings.load().mode, input = input) == null) throw Problem("err_busy")
+        if (app.runs.start(actual, app.settings.load().mode, input = input, inputOrigin = InputOrigin.SYSTEM_SHARE) == null) throw Problem("err_busy")
         mutable.update { it.copy(selected = actual.id, error = null) }
     } catch (e: Exception) { if (e is CancellationException) throw e; mutable.update { it.copy(error = app.describe(e)) } } } }
 }

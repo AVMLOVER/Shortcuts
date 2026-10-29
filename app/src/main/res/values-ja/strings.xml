@@ -7,7 +7,7 @@
     <string name="ui_settings">設定</string>
     <string name="ui_home_subtitle">日々の操作を、ひとつの流れに。</string>
     <string name="ui_new_shortcut">新規ショートカット</string>
-    <string name="ui_edit_shortcut">ショートカットを編集</string>
+    <string name="ui_edit_shortcut">編集</string>
     <string name="ui_name">名前</string>
     <string name="ui_done">完了</string>
     <string name="ui_save">保存</string>
@@ -699,4 +699,27 @@
     <string name="ui_err_http_method">GET、POST、PUT、PATCH、DELETEのいずれかを選んでください。</string>
     <string name="ui_err_http_status">サーバから成功以外のHTTPステータスが返されました。</string>
     <string name="ui_err_http_redirect">URLの転送先が無効、ループしているか、8回を超えています。</string>
+    <string name="ui_action_run_shortcut">ショートカットを実行</string>
+    <string name="ui_action_return">戻る</string>
+    <string name="ui_action_end_shortcut">ショートカットを終了</string>
+    <string name="ui_action_get_application_list">アプリ一覧を取得</string>
+    <string name="ui_shortcut_selection">実行するショートカット</string>
+    <string name="ui_shortcut_preset">あらかじめ指定</string>
+    <string name="ui_shortcut_input">入力内容</string>
+    <string name="ui_source_system_share">システム共有から</string>
+    <string name="ui_source_shortcut">別のショートカットから</string>
+    <string name="ui_err_shortcut_missing">指定したショートカットが存在しません。実行を終了しました。</string>
+    <string name="ui_err_call_cycle">循環呼び出し、または16階層を超える呼び出しはできません。</string>
+    <string name="ui_err_child_shortcut">呼び出したショートカットでエラーが発生し、呼び出し元を終了しました。</string>
+    <string name="ui_err_future_shortcut">このショートカットにはShortcutsのバージョンコード%1$d以降が必要です。</string>
+    <string name="ui_application_list_permission">アプリ一覧へのアクセス</string>
+    <string name="ui_application_list_permission_hint">Androidと端末のプライバシー設定で管理されます。タップしてアプリ設定を開きます。</string>
+    <string name="ui_calendar_read_permission">カレンダーの読み取り</string>
+    <string name="ui_calendar_write_permission">カレンダーへの書き込み</string>
+    <string name="ui_application_list_format">出力形式</string>
+    <string name="ui_application_label">アプリ名</string>
+    <string name="ui_application_label_package">名前とパッケージ</string>
+    <string name="ui_application_list_offset">開始位置（0から）</string>
+    <string name="ui_application_list_limit">最大項目数</string>
+    <string name="ui_application_list_hint">最大256項目のテキストリストを出力します。続きは開始位置を変更してください。システムアプリも選択できます。</string>
 </resources>

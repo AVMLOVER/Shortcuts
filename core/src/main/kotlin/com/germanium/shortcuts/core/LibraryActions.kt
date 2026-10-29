@@ -40,8 +40,8 @@ internal fun libraryActions(platform: PlatformActions): List<ActionHandler> = li
         platform.readCalendarDay(CalendarDaySpec(date, zone))
     },
     Handler("screenshot") { p, c -> platform.screenshot(c.text(p, "folder", "Screenshots"), c.text(p, "filename", "screenshot.png")) },
-    Handler("create_variable", { validateVariableName(it["name"].orEmpty()) }) { p, c -> val value = dictionaryValue(p["valueType"] ?: "auto", p["value"] ?: "{{input}}", c); c.variables.create(p.getValue("name"), value); value },
-    Handler("append_variable", { validateVariableName(it["name"].orEmpty()) }) { p, c -> c.variables.append(p.getValue("name"), c.resolve(p["value"] ?: "{{input}}")) },
+    Handler("create_variable", { validateVariableName(it["name"].orEmpty()) }) { p, c -> val value = dictionaryValue(p["valueType"] ?: "auto", p["value"] ?: "{{input}}", c); c.variables.create(p.getValue("name"), value, c.originsOf(p["value"] ?: "{{input}}")); value },
+    Handler("append_variable", { validateVariableName(it["name"].orEmpty()) }) { p, c -> c.variables.append(p.getValue("name"), c.resolve(p["value"] ?: "{{input}}"), c.originsOf(p["value"] ?: "{{input}}")) },
     Handler("ask_input") { p, c ->
         val type = p["inputType"] ?: "text"
         val answer = platform.askInput(c.text(p, "title", "Shortcuts"), c.text(p, "prompt"), c.text(p, "initial"), type) ?: throw kotlinx.coroutines.CancellationException("Input cancelled")
@@ -119,6 +119,12 @@ internal fun libraryActions(platform: PlatformActions): List<ActionHandler> = li
     Handler("get_url_headers") { p, c -> HttpActions.request(p, c, platform, "get_url_headers") },
     Handler("get_url_component") { p, c -> HttpActions.component(c.text(p, "url", "{{input}}"), p.getOrDefault("component", "host")) },
     Handler("open_url") { p, c -> platform.launchIntent(IntentSpec(data = c.text(p, "url"))); c.value },
+    Handler("get_application_list") { p, c ->
+        val offset = c.text(p, "offset", "0").toIntOrNull() ?: throw Problem("err_number")
+        val limit = c.text(p, "limit", "256").toIntOrNull() ?: throw Problem("err_number")
+        require(offset >= 0 && limit in 1..256 && p.getOrDefault("format", "package") in listOf("package", "label", "both")) { throw Problem("err_invalid_data") }
+        platform.applicationList(p["includeSystem"] == "true", p.getOrDefault("format", "package"), offset, limit)
+    },
     Handler("get_clipboard") { _, _ -> Value.Text(platform.clipboard()) },
     Handler("set_clipboard") { p, c -> Value.Text(platform.clipboard(c.text(p, "value", "{{input}}"))) },
     Handler("device_info") { _, _ -> platform.deviceInfo() },

@@ -7,7 +7,7 @@
     <string name="ui_settings">Settings</string>
     <string name="ui_home_subtitle">Make everyday tasks flow.</string>
     <string name="ui_new_shortcut">New shortcut</string>
-    <string name="ui_edit_shortcut">Edit shortcut</string>
+    <string name="ui_edit_shortcut">Edit</string>
     <string name="ui_name">Name</string>
     <string name="ui_done">Done</string>
     <string name="ui_save">Save</string>
@@ -331,7 +331,7 @@
     <string name="ui_autostart">Autostart / background settings</string>
     <string name="ui_autostart_hint">Allow autostart and background activity in your system settings when available.</string>
     <string name="ui_new_automation">New automation</string>
-    <string name="ui_choose_shortcut">Choose shortcut</string>
+    <string name="ui_choose_shortcut">Choose Shortcut</string>
     <string name="ui_trigger">When</string>
     <string name="ui_time_of_day">Time (HH:mm)</string>
     <string name="ui_battery_level">Battery percentage</string>
@@ -699,4 +699,27 @@
     <string name="ui_err_http_method">Choose GET, POST, PUT, PATCH or DELETE.</string>
     <string name="ui_err_http_status">The server returned an unsuccessful HTTP status.</string>
     <string name="ui_err_http_redirect">The URL redirect is missing, repeated or exceeds eight hops.</string>
+    <string name="ui_action_run_shortcut">Run Shortcut</string>
+    <string name="ui_action_return">Return</string>
+    <string name="ui_action_end_shortcut">End Shortcut</string>
+    <string name="ui_action_get_application_list">Get App List</string>
+    <string name="ui_shortcut_selection">Shortcut Selection</string>
+    <string name="ui_shortcut_preset">Preset</string>
+    <string name="ui_shortcut_input">Input Content</string>
+    <string name="ui_source_system_share">From System Share</string>
+    <string name="ui_source_shortcut">From Another Shortcut</string>
+    <string name="ui_err_shortcut_missing">The selected shortcut no longer exists.</string>
+    <string name="ui_err_call_cycle">Circular calls or more than 16 call levels are not allowed.</string>
+    <string name="ui_err_child_shortcut">The called shortcut failed; the calling shortcut has stopped.</string>
+    <string name="ui_err_future_shortcut">This shortcut requires Shortcuts version code %1$d or later.</string>
+    <string name="ui_application_list_permission">App List Access</string>
+    <string name="ui_application_list_permission_hint">Managed by Android and device privacy settings. Open app settings to review access.</string>
+    <string name="ui_calendar_read_permission">Read Calendar</string>
+    <string name="ui_calendar_write_permission">Write Calendar</string>
+    <string name="ui_application_list_format">Output Format</string>
+    <string name="ui_application_label">App Name</string>
+    <string name="ui_application_label_package">Name and Package</string>
+    <string name="ui_application_list_offset">Start Offset (0-based)</string>
+    <string name="ui_application_list_limit">Maximum Items</string>
+    <string name="ui_application_list_hint">Returns a text list, up to 256 entries per batch. Change the offset for more apps; system apps are optional.</string>
 </resources>

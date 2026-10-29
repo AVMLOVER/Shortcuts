@@ -7,6 +7,8 @@ import com.google.re2j.Matcher
 
 fun evaluateCondition(parameters: Map<String, String>, context: RunContext): Boolean {
     val left = context.resolve(parameters["left"] ?: "{{input}}")
+    val operator = parameters.getOrDefault("operator", "equals")
+    if (operator in ShortcutEngine.SOURCE_CONDITIONS) return (if (operator == "source_system_share") InputOrigin.SYSTEM_SHARE else InputOrigin.SHORTCUT) in context.originsOf(parameters["left"] ?: "{{input}}")
     val right = context.resolve(parameters["right"].orEmpty())
     val a = left.text(); val b = right.text()
     return when (parameters.getOrDefault("operator", "equals")) {

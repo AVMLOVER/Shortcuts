@@ -9,13 +9,13 @@ class RunCoordinator(private val app: ShortcutsApplication) {
     private val mutable = MutableStateFlow(RunState())
     val state = mutable.asStateFlow()
     private var job: Job? = null
-    fun start(shortcut: Shortcut, mode: ExecutionMode, preview: Boolean = false, fromWidget: Boolean = false, input: Value? = null): Job? {
+    fun start(shortcut: Shortcut, mode: ExecutionMode, preview: Boolean = false, fromWidget: Boolean = false, input: Value? = null, inputOrigin: InputOrigin = InputOrigin.NONE): Job? {
         if (job?.isActive == true) return null
         job = app.scope.launch {
             mutable.value = RunState(runningId = shortcut.id, name = shortcut.name, fromWidget = fromWidget)
             val token = java.util.UUID.randomUUID().toString()
             try {
-                val result = withContext(Dispatchers.Default) { app.engine.run(shortcut, mode, typedInput = input, angleUnit = app.settings.load().angleUnit, onStep = { id -> mutable.update { it.copy(currentStep = id) }; app.diagnostics.activeStep = "$token/${shortcut.id}/$id" }) }
+                val result = withContext(Dispatchers.Default) { app.engine.run(shortcut, mode, typedInput = input, inputOrigin = inputOrigin, angleUnit = app.settings.load().angleUnit, onStep = { id -> mutable.update { it.copy(currentStep = id) }; app.diagnostics.activeStep = "$token/${shortcut.id}/$id" }) }
                 mutable.update { it.copy(result = result, error = result.failure?.let(app::describe)) }
                 if (preview && result.status == RunStatus.SUCCEEDED && result.steps.none { it.type == "quick_look" }) app.actions.quickLook(result.steps.lastOrNull()?.value ?: Value.Text(""))
             } catch (e: CancellationException) { mutable.update { it.copy(notice = app.tr("run_stopped")) }; throw e

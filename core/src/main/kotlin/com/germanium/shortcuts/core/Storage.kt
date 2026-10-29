@@ -27,8 +27,11 @@ class XmlShortcutRepository(private val directory: File, private val codec: XmlC
         check(directory.isDirectory) { throw Problem("err_io") }
         val files = checkNotNull(directory.listFiles()) { throw Problem("err_io") }
         files.filter { it.extension == "xml" }.map { file ->
-            codec.decode(file.readBounded()).also { require(file.nameWithoutExtension == it.id) { throw Problem("err_io") } }
-        }.sortedByDescending { it.updatedAt }
+            val document = codec.decodeMigrating(file.readBounded())
+            require(file.nameWithoutExtension == document.shortcut.id) { throw Problem("err_io") }
+            if (document.needsMigration) atomicWrite(file, codec.encode(document.shortcut))
+            document.shortcut
+        }.also { items -> require(items.map { it.uuid }.distinct().size == items.size) { throw Problem("err_invalid_data") } }.sortedByDescending { it.updatedAt }
     } }
     override suspend fun save(shortcut: Shortcut): Unit = withContext(Dispatchers.IO) { mutex.withLock {
         atomicWrite(file(shortcut.id), codec.encode(shortcut))

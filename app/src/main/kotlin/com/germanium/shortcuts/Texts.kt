@@ -5,9 +5,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.germanium.shortcuts.core.Problem
 import com.germanium.shortcuts.core.InvalidDocument
+import com.germanium.shortcuts.core.FutureShortcutVersion
 
 object Texts {
     val ids: Map<String, Int> = mapOf(
+        "action_run_shortcut" to R.string.ui_action_run_shortcut,
+        "action_return" to R.string.ui_action_return,
+        "action_end_shortcut" to R.string.ui_action_end_shortcut,
+        "action_get_application_list" to R.string.ui_action_get_application_list,
+        "shortcut_selection" to R.string.ui_shortcut_selection,
+        "shortcut_preset" to R.string.ui_shortcut_preset,
+        "shortcut_input" to R.string.ui_shortcut_input,
+        "source_system_share" to R.string.ui_source_system_share,
+        "source_shortcut" to R.string.ui_source_shortcut,
+        "err_shortcut_missing" to R.string.ui_err_shortcut_missing,
+        "err_call_cycle" to R.string.ui_err_call_cycle,
+        "err_child_shortcut" to R.string.ui_err_child_shortcut,
+        "err_future_shortcut" to R.string.ui_err_future_shortcut,
+        "application_list_permission" to R.string.ui_application_list_permission,
+        "application_list_permission_hint" to R.string.ui_application_list_permission_hint,
+        "calendar_read_permission" to R.string.ui_calendar_read_permission,
+        "calendar_write_permission" to R.string.ui_calendar_write_permission,
+        "application_list_format" to R.string.ui_application_list_format,
+        "application_label" to R.string.ui_application_label,
+        "application_label_package" to R.string.ui_application_label_package,
+        "application_list_offset" to R.string.ui_application_list_offset,
+        "application_list_limit" to R.string.ui_application_list_limit,
+        "application_list_hint" to R.string.ui_application_list_hint,
         "undo" to R.string.ui_undo,
         "redo" to R.string.ui_redo,
         "action_expand_url" to R.string.ui_action_expand_url,
@@ -727,6 +751,7 @@ fun Context.tr(key: String, vararg args: Any): String {
 }
 fun Context.describe(error: Throwable): String = when (error) {
     is Problem -> tr(error.key, *error.arguments)
+    is FutureShortcutVersion -> tr("err_future_shortcut", error.requiredVersion)
     is InvalidDocument -> tr("err_xml")
     is SecurityException -> tr("err_permission")
     is java.util.concurrent.TimeoutException -> tr("err_timeout")

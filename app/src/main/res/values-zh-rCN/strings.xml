@@ -7,7 +7,7 @@
     <string name="ui_settings">设置</string>
     <string name="ui_home_subtitle">让日常操作，一步完成。</string>
     <string name="ui_new_shortcut">新快捷指令</string>
-    <string name="ui_edit_shortcut">编辑快捷指令</string>
+    <string name="ui_edit_shortcut">编辑</string>
     <string name="ui_name">名称</string>
     <string name="ui_done">完成</string>
     <string name="ui_save">保存</string>
@@ -699,4 +699,27 @@
     <string name="ui_err_http_method">请选择 GET、POST、PUT、PATCH 或 DELETE。</string>
     <string name="ui_err_http_status">服务器返回了未成功的 HTTP 状态。</string>
     <string name="ui_err_http_redirect">URL 跳转地址无效、形成循环或超过八次跳转。</string>
+    <string name="ui_action_run_shortcut">运行其他快捷指令</string>
+    <string name="ui_action_return">返回</string>
+    <string name="ui_action_end_shortcut">结束快捷指令</string>
+    <string name="ui_action_get_application_list">获取应用列表</string>
+    <string name="ui_shortcut_selection">运行哪个快捷指令</string>
+    <string name="ui_shortcut_preset">预先设置</string>
+    <string name="ui_shortcut_input">输入内容</string>
+    <string name="ui_source_system_share">来源于系统共享</string>
+    <string name="ui_source_shortcut">来源于其他快捷指令</string>
+    <string name="ui_err_shortcut_missing">指定的快捷指令不存在，运行已终止。</string>
+    <string name="ui_err_call_cycle">快捷指令出现循环调用，或调用层级超过 16 层。</string>
+    <string name="ui_err_child_shortcut">被调用的快捷指令运行失败，主快捷指令已终止。</string>
+    <string name="ui_err_future_shortcut">此快捷指令要求 Shortcuts 版本号至少为 %1$d，当前版本无法打开。</string>
+    <string name="ui_application_list_permission">获取应用列表权限</string>
+    <string name="ui_application_list_permission_hint">由 Android 和厂商隐私设置管理，点击查看本软件权限设置。</string>
+    <string name="ui_calendar_read_permission">读取日程权限</string>
+    <string name="ui_calendar_write_permission">写入日程权限</string>
+    <string name="ui_application_list_format">应用列表输出格式</string>
+    <string name="ui_application_label">应用名称</string>
+    <string name="ui_application_label_package">名称和包名</string>
+    <string name="ui_application_list_offset">起始位置（从 0 开始）</string>
+    <string name="ui_application_list_limit">最多输出项数</string>
+    <string name="ui_application_list_hint">输出文本列表，每批最多 256 项。调整起始位置可继续获取，可选择包含系统应用。</string>
 </resources>

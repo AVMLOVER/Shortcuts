@@ -1,0 +1,38 @@
+Shortcuts 1.0.3 device verification — 2026-10-29 (Asia/Shanghai)
+
+25 feature/regression checks passed; 1 backup and 1 migration-preservation check passed.
+Release APK SHA-256: 9fc386b0519bfbd63dd8be76e8af0c8775c87e4f4dd932ebd1484e3a80bcbdea
+
+The main application was updated with its existing release certificate, never uninstalled or cleared.
+Original workflow IDs, UUIDs, names, steps, parameters and timestamps matched after legacy metadata migration.
+Other original file hashes and existing preference entries matched. The original backup remains private.
+Only randomized test fixtures were removed. Window transitions and screen-awake settings were restored.
+This run covers nested calls and cancellation, source choices, editor icons, package queries, HTTP cancellation and earlier editor/HTTP regressions.
+System sharing dispatch, camera, screenshots and image transforms were not repeated in this run.
+
+Passed cases:
+- Version103DeviceTest.cancellingHttpDisconnectsAWaitingResponse
+- Version103DeviceTest.applicationListProducesPackagesAndPermissionEntriesExist
+- Version103DeviceTest.basicActionsComeFirstAndEditorActionsUseIcons
+- Version103DeviceTest.originChoicesAppearForSharedAliasesAndDisappearForLiteralInputs
+- Version103DeviceTest.callsReturnToTheirCallerAndEditorStopCancelsAChild
+- Version103DeviceTest.mainRunButtonBecomesAStopButton
+- RereleaseDeviceTest.undoAndRedoRestoreGroupsParametersAndAppearanceWithoutOldResults
+- RereleaseDeviceTest.variableActionsAlwaysAppearAndGetVariableChoosesNamedOrMagicSources
+- RereleaseDeviceTest.removeButtonDeletesTheControlAndItsEntireNestedBody
+- RereleaseDeviceTest.dragTargetsUseTheWholeControlAndSupportAllBranches
+- RereleaseDeviceTest.exportUndoAndRedoShowLongPressTooltips
+- RereleaseDeviceTest.removingASourceMarksItsExistingReferenceAsAnError
+- RereleaseDeviceTest.aBodyActionCanBeDraggedBeforeItsRepeatHeader
+- RereleaseDeviceTest.conditionalCounterReplacementRunsThroughNativeDivision
+- RereleaseDeviceTest.homeCopyIconCreatesAnIndependentMatchingShortcutWithCopySuffix
+- HttpDeviceTest.redirectsPreservePatchBodiesAndStripCredentialsAcrossOrigins
+- HttpDeviceTest.expansionAndHeadersFollowRedirectsAndFallbackWhenHeadIsUnsupported
+- HttpDeviceTest.getPostPutPatchDeleteSendTheConfiguredHeadersAndJson
+- Version102DeviceTest.conditionalRepeatHasFooterComparisonsAndSeparateCount
+- Version102DeviceTest.onlyEnabledOutputSuggestionsAppearInTheVariableBar
+- DeviceRegressionTest.androidIcuTemplatesAndNestedXml
+- DeviceRegressionTest.draggingFromTheLibraryInsertsAnActionAtTheChosenPosition
+- DeviceRegressionTest.draggingAHandleReordersAndPersistsTheActions
+- DeviceRegressionTest.resourceFilesMatchRequestedLanguages
+- DeviceRegressionTest.draggingNearTheEdgeScrollsPastTheOriginalRow

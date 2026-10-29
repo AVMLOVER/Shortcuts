@@ -41,6 +41,9 @@ interface PlatformActions {
     suspend fun transformImage(operation: String, source: Value, options: Map<String, String>): Value = throw Problem("err_backend")
     suspend fun share(value: Value): Unit = throw Problem("err_backend")
     suspend fun waitForReturn(): Unit = throw Problem("err_backend")
+    suspend fun shortcutsForCall(): List<Shortcut> = throw Problem("err_backend")
+    suspend fun chooseShortcut(items: List<Shortcut>): String? = chooseMenu("Shortcuts", items.map { it.uuid to it.name })
+    suspend fun applicationList(includeSystem: Boolean, format: String, offset: Int, limit: Int): Value = throw Problem("err_backend")
     suspend fun batteryLevel(): Int = throw Problem("err_backend")
     suspend fun fileAction(operation: String, folder: String, name: String, content: Value, mode: ExecutionMode, external: Boolean = false): Value {
         require(!external) { throw Problem("err_permission") }

@@ -141,7 +141,7 @@ class MainActivity : ComponentActivity() {
                                 Text(t("actions_count", allSteps(shortcut.steps).size), style = MaterialTheme.typography.labelLarge)
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) { ShortcutBadge(shortcut.icon, shortcut.color, 52.dp); Text(shortcut.name, style = MaterialTheme.typography.titleLarge) }
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    ToolIcon(R.drawable.ic_play, "run", state.runningId == null && !state.saving) { model.run(shortcut) }
+                                    ToolIcon(if (state.runningId == shortcut.id) R.drawable.ic_stop else R.drawable.ic_play, if (state.runningId == shortcut.id) "stop" else "run", !state.saving && (state.runningId == null || state.runningId == shortcut.id), modifier = Modifier.testTag("home_run_${shortcut.id}")) { if (state.runningId == shortcut.id) model.cancelRun() else model.run(shortcut) }
                                     ToolIcon(R.drawable.ic_export, "export") { transfers.export(shortcut) }
                                     ToolIcon(R.drawable.ic_controls, "add_to_controls") { tileShortcut = shortcut }
                                     ToolIcon(R.drawable.ic_glyph_folder, "move_to_folder") { moveShortcut = shortcut }

@@ -43,35 +43,42 @@ class VariableScope {
     private val lengths = mutableMapOf<String, Int>()
     private var totalLength = 0L
     private val outputs = mutableMapOf<String, Value>()
+    private val namedOrigins = mutableMapOf<String, Set<InputOrigin>>()
+    private val outputOrigins = mutableMapOf<String, Set<InputOrigin>>()
+    fun origins(name: String): Set<InputOrigin> = namedOrigins[name].orEmpty()
+    fun outputOrigins(id: String): Set<InputOrigin> = outputOrigins[id] ?: outputOrigins[id.substringBefore('.')].orEmpty()
     private val outputLengths = mutableMapOf<String, Int>()
     private var outputLength = 0L
     fun output(id: String): Value = outputs[id] ?: throw Problem("err_variable_missing")
     fun outputProperty(id: String, key: String): Value? = outputs["$id.$key"]
-    fun record(id: String, value: Value) {
+    fun record(id: String, value: Value, origins: Set<InputOrigin> = emptySet()) {
+        outputOrigins[id] = origins
         val length = value.text().length
         require(outputLength - (outputLengths[id] ?: 0) + length <= 8388608) { throw Problem("err_size") }
         outputLength += length - (outputLengths[id] ?: 0); outputLengths[id] = length; outputs[id] = value
     }
-    fun create(name: String, value: Value) { require(name !in values) { throw Problem("err_variable_exists") }; set(name, value) }
-    fun append(name: String, value: Value): Value {
+    fun create(name: String, value: Value, origins: Set<InputOrigin> = emptySet()) { require(name !in values) { throw Problem("err_variable_exists") }; set(name, value, origins) }
+    fun append(name: String, value: Value, origins: Set<InputOrigin> = emptySet()): Value {
         val previous = get(name)
         val result = Value.ListValue((if (previous is Value.ListValue) previous.items else listOf(previous)) + (if (value is Value.ListValue) value.items else listOf(value)))
-        set(name, result); return result
+        set(name, result, origins(name) + origins); return result
     }
     fun get(name: String): Value = values[name] ?: throw Problem("err_variable_missing")
-    fun set(name: String, value: Value) {
+    fun set(name: String, value: Value, origins: Set<InputOrigin> = emptySet()) {
         validateVariableName(name)
         require(values.containsKey(name) || values.size < 256) { throw Problem("err_size") }
         val length = value.text().length
         require(length <= 262144 && totalLength - (lengths[name] ?: 0) + length <= 4194304) { throw Problem("err_size") }
         totalLength += length - (lengths[name] ?: 0)
         lengths[name] = length
-        values[name] = value
+        values[name] = value; namedOrigins[name] = origins
     }
     fun snapshot(): Map<String, Value> = values.toMap()
-    fun remove(name: String) { values.remove(name); totalLength -= lengths.remove(name) ?: 0 }
+    fun remove(name: String) { namedOrigins.remove(name); values.remove(name); totalLength -= lengths.remove(name) ?: 0 }
 }
-data class RunContext(val mode: ExecutionMode, val value: Value, val variables: VariableScope, val angleUnit: AngleUnit = AngleUnit.DEGREES, val shortcutInput: Value = value) {
+data class RunContext(val mode: ExecutionMode, val value: Value, val variables: VariableScope, val angleUnit: AngleUnit = AngleUnit.DEGREES, val shortcutInput: Value = value, val inputOrigin: InputOrigin = InputOrigin.NONE, val valueOrigins: Set<InputOrigin> = emptySet()) {
+    fun referenceOrigins(name: String): Set<InputOrigin> = when { name == "input" -> valueOrigins; name.startsWith("@") -> variables.outputOrigins(name.drop(1)); else -> variables.origins(name) }
+    fun originsOf(template: String) = TOKEN.findAll(template).flatMap { referenceOrigins(it.groupValues[1].trim()) }.toSet()
     val input: String get() = value.text()
     fun reference(name: String): Value = when {
         name == "input" -> value

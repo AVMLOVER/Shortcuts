@@ -9,6 +9,9 @@ import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import javax.xml.parsers.DocumentBuilderFactory
 
+class FutureShortcutVersion(val requiredVersion: Int) : Exception("Requires Shortcuts $requiredVersion")
+data class DecodedShortcut(val shortcut: Shortcut, val needsMigration: Boolean)
+
 class InvalidDocument(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /** UTF-8 only, bounded, no DTD/entities; unknown action IDs and parameters round-trip unchanged. */
@@ -16,7 +19,7 @@ class XmlCodec {
     fun encode(shortcut: Shortcut): ByteArray = buildString {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         val version = if (allSteps(shortcut.steps).any { it.branches.isNotEmpty() }) 2 else 1
-        append("<shortcut version=\"$version\" id=\"${escape(shortcut.id)}\" createdAt=\"${shortcut.createdAt}\" updatedAt=\"${shortcut.updatedAt}\" icon=\"${escape(shortcut.icon)}\" color=\"${escape(shortcut.color)}\" folder=\"${escape(shortcut.folderId)}\">\n")
+        append("<shortcut version=\"$version\" id=\"${escape(shortcut.id)}\" createdAt=\"${shortcut.createdAt}\" updatedAt=\"${shortcut.updatedAt}\" icon=\"${escape(shortcut.icon)}\" color=\"${escape(shortcut.color)}\" folder=\"${escape(shortcut.folderId)}\" uuid=\"${shortcut.uuid}\" appVersion=\"$SHORTCUTS_VERSION\">\n")
         append("  <name>${escape(shortcut.name)}</name>\n  <steps>\n")
         fun writeSteps(steps: List<ActionStep>) {
             steps.forEach { step ->
@@ -37,8 +40,13 @@ class XmlCodec {
     }.toByteArray(Charsets.UTF_8).also { require(it.size <= MAX_BYTES) { throw Problem("err_xml") } }
 
     fun decode(bytes: ByteArray): Shortcut = guarded {
+        decodeMigrating(bytes).shortcut
+    }
+
+    fun decodeMigrating(bytes: ByteArray): DecodedShortcut = guarded {
         val root = parse(bytes, "shortcut")
-        readShortcut(root)
+        val shortcut = readShortcut(root)
+        DecodedShortcut(shortcut, root.getAttribute("uuid") != shortcut.uuid || root.getAttribute("appVersion").toIntOrNull() != SHORTCUTS_VERSION)
     }
 
     fun encodeBundle(shortcuts: List<Shortcut>): ByteArray {
@@ -71,6 +79,9 @@ class XmlCodec {
 
     private fun readShortcut(root: Element): Shortcut {
         require(root.required("version") in setOf("1", "2")) { throw Problem("err_xml") }
+        val appVersion = root.getAttribute("appVersion").takeIf(String::isNotEmpty)?.toIntOrNull()
+        require(!root.hasAttribute("appVersion") || appVersion != null && appVersion >= 0) { throw Problem("err_xml") }
+        if (appVersion != null && appVersion > SHORTCUTS_VERSION) throw FutureShortcutVersion(appVersion)
         root.only("name", "steps")
         var count = 0
         fun readSteps(parent: Element, depth: Int): List<ActionStep> {
@@ -92,7 +103,7 @@ class XmlCodec {
             createdAt = root.required("createdAt").toLong(), updatedAt = root.required("updatedAt").toLong(),
             steps = readSteps(root.one("steps").also { it.only("action") }, 0),
             icon = if (root.hasAttribute("icon")) root.getAttribute("icon") else "layers",
-            color = if (root.hasAttribute("color")) root.getAttribute("color") else "purple", folderId = root.getAttribute("folder"))
+            color = if (root.hasAttribute("color")) root.getAttribute("color") else "purple", folderId = root.getAttribute("folder"), uuid = root.getAttribute("uuid").takeIf(String::isNotEmpty) ?: stableShortcutUuid(root.required("id")))
     }
 
     fun encode(settings: AppSettings): ByteArray =
@@ -120,6 +131,10 @@ class XmlCodec {
         })
         val root = builder.parse(InputSource(StringReader(source))).documentElement
         require((root.tagName == expected || (allowSingle && root.tagName == "shortcut")) && root.namespaceURI.isNullOrEmpty()) { throw Problem("err_xml") }
+        if (root.tagName in listOf("shortcut", "shortcuts") && root.hasAttribute("appVersion")) {
+            val required = root.getAttribute("appVersion").toIntOrNull() ?: throw Problem("err_xml")
+            if (required > SHORTCUTS_VERSION) throw FutureShortcutVersion(required)
+        }
         require(root.required("version") in if (root.tagName == "shortcut") setOf("1", "2") else setOf("1")) { throw Problem("err_xml") }
         return root
     }
@@ -137,6 +152,7 @@ class XmlCodec {
             .replace("\n", "&#10;").replace("\t", "&#9;")
     }
     private inline fun <T> guarded(block: () -> T): T = try { block() } catch (e: Exception) {
+        if (e is FutureShortcutVersion) throw e
         throw InvalidDocument("Invalid XML", e)
     }
     companion object { const val MAX_BYTES = 1024 * 1024; const val MAX_BUNDLE_BYTES = 8 * 1024 * 1024 }

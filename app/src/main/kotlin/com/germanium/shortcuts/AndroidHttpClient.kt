@@ -3,11 +3,30 @@ package com.germanium.shortcuts
 import com.germanium.shortcuts.core.*
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import java.util.concurrent.atomic.AtomicReference
 
 internal class AndroidHttpClient {
-    suspend fun request(spec: HttpRequestSpec): HttpResponseSpec = runInterruptible(Dispatchers.IO) {
+    suspend fun request(spec: HttpRequestSpec): HttpResponseSpec = suspendCancellableCoroutine { continuation ->
+        val active = AtomicReference<HttpURLConnection?>()
+        val worker = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = exchange(spec) { connection ->
+                    active.set(connection)
+                    if (!continuation.isActive) { connection?.disconnect(); throw CancellationException("Request cancelled") }
+                }
+                if (continuation.isActive) continuation.resume(response)
+            } catch (e: Exception) { if (continuation.isActive) continuation.resumeWithException(e) }
+        }
+        continuation.invokeOnCancellation {
+            val connection = active.getAndSet(null)
+            worker.cancel()
+            if (connection != null) CoroutineScope(Dispatchers.IO).launch { connection.disconnect() }
+        }
+    }
+    private fun exchange(spec: HttpRequestSpec, connected: (HttpURLConnection?) -> Unit): HttpResponseSpec {
         HttpActions.validateUrl(spec.url); HttpActions.validateHeaders(spec.headers)
         require(spec.method in HttpActions.methods + "HEAD") { throw Problem("err_http_method") }
         require((spec.body?.size ?: 0) <= 32 * 1024 * 1024) { throw Problem("err_size") }
@@ -17,6 +36,7 @@ internal class AndroidHttpClient {
             require(visited.add("$method $next")) { throw Problem("err_http_redirect") }
             HttpActions.validateUrl(next.toString())
             val connection = next.openConnection() as HttpURLConnection
+            connected(connection)
             connection.connectTimeout = 15000; connection.readTimeout = 15000; connection.instanceFollowRedirects = false; connection.useCaches = false
             connection.requestMethod = method
             headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
@@ -39,7 +59,7 @@ internal class AndroidHttpClient {
                         val stream = if (connection.contentEncoding.equals("gzip", true)) java.util.zip.GZIPInputStream(raw) else raw
                         stream.use { it.readBytesBounded(1048576) }
                     }
-                    return@runInterruptible HttpResponseSpec(next.toString(), status, responseHeaders, bytes)
+                    return HttpResponseSpec(next.toString(), status, responseHeaders, bytes)
                 }
             } finally { connection.disconnect() }
         }

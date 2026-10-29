@@ -7,7 +7,7 @@
     <string name="ui_settings">Einstellungen</string>
     <string name="ui_home_subtitle">Alltägliche Aufgaben verbinden.</string>
     <string name="ui_new_shortcut">Neuer Kurzbefehl</string>
-    <string name="ui_edit_shortcut">Kurzbefehl bearbeiten</string>
+    <string name="ui_edit_shortcut">Bearbeiten</string>
     <string name="ui_name">Name</string>
     <string name="ui_done">Fertig</string>
     <string name="ui_save">Speichern</string>
@@ -331,7 +331,7 @@
     <string name="ui_autostart">Autostart-/Hintergrundeinstellungen</string>
     <string name="ui_autostart_hint">Autostart und Hintergrundaktivität in den Systemeinstellungen erlauben, falls verfügbar.</string>
     <string name="ui_new_automation">Neue Automation</string>
-    <string name="ui_choose_shortcut">Kurzbefehl auswählen</string>
+    <string name="ui_choose_shortcut">Kurzbefehl wählen</string>
     <string name="ui_trigger">Wenn</string>
     <string name="ui_time_of_day">Uhrzeit (HH:mm)</string>
     <string name="ui_battery_level">Akkustand in Prozent</string>
@@ -699,4 +699,27 @@
     <string name="ui_err_http_method">GET, POST, PUT, PATCH oder DELETE wählen.</string>
     <string name="ui_err_http_status">Der Server hat einen HTTP-Fehlerstatus zurückgegeben.</string>
     <string name="ui_err_http_redirect">Die URL-Weiterleitung fehlt, wiederholt sich oder überschreitet acht Schritte.</string>
+    <string name="ui_action_run_shortcut">Kurzbefehl ausführen</string>
+    <string name="ui_action_return">Zurückgeben</string>
+    <string name="ui_action_end_shortcut">Kurzbefehl beenden</string>
+    <string name="ui_action_get_application_list">App-Liste abrufen</string>
+    <string name="ui_shortcut_selection">Kurzbefehl-Auswahl</string>
+    <string name="ui_shortcut_preset">Voreinstellung</string>
+    <string name="ui_shortcut_input">Eingabeinhalt</string>
+    <string name="ui_source_system_share">Aus Systemfreigabe</string>
+    <string name="ui_source_shortcut">Aus anderem Kurzbefehl</string>
+    <string name="ui_err_shortcut_missing">Der gewählte Kurzbefehl ist nicht mehr vorhanden.</string>
+    <string name="ui_err_call_cycle">Zyklische Aufrufe oder mehr als 16 Aufrufebenen sind nicht zulässig.</string>
+    <string name="ui_err_child_shortcut">Der aufgerufene Kurzbefehl ist fehlgeschlagen; der Aufrufer wurde beendet.</string>
+    <string name="ui_err_future_shortcut">Dieser Kurzbefehl erfordert Shortcuts-Versionscode %1$d oder höher.</string>
+    <string name="ui_application_list_permission">Zugriff auf App-Liste</string>
+    <string name="ui_application_list_permission_hint">Wird von Android und den Datenschutzeinstellungen des Geräts verwaltet. App-Einstellungen öffnen.</string>
+    <string name="ui_calendar_read_permission">Kalender lesen</string>
+    <string name="ui_calendar_write_permission">Kalender schreiben</string>
+    <string name="ui_application_list_format">Ausgabeformat</string>
+    <string name="ui_application_label">App-Name</string>
+    <string name="ui_application_label_package">Name und Paket</string>
+    <string name="ui_application_list_offset">Startposition (ab 0)</string>
+    <string name="ui_application_list_limit">Maximale Einträge</string>
+    <string name="ui_application_list_hint">Textliste mit bis zu 256 Einträgen je Aufruf. Für weitere Apps die Startposition ändern; System-Apps sind optional.</string>
 </resources>

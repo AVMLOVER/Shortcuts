@@ -71,6 +71,12 @@ class AndroidActions(context: Context, private val interactions: Interactions, p
     override suspend fun createCalendarEvent(event: CalendarEventSpec) = system.createEvent(event)
     override suspend fun showResult(title: String, body: String, allowCancel: Boolean) = interactions.ask(Interaction.ResultDialog(title, body, allowCancel)) == "ok"
     override suspend fun viewHtml(html: String) { interactions.ask(Interaction.Html(html)) }
+    override suspend fun shortcutsForCall() = (context.applicationContext as ShortcutsApplication).shortcuts.list()
+    override suspend fun chooseShortcut(items: List<Shortcut>) = interactions.ask(Interaction.Menu(context.tr("choose_shortcut"), items.map { it.uuid to it.name }))
+    override suspend fun applicationList(includeSystem: Boolean, format: String, offset: Int, limit: Int): Value {
+        val apps = AppsRepository.load(context, allPackages = true).filter { includeSystem || !it.system }.distinctBy { it.packageName }.sortedBy { it.packageName }
+        return Value.ListValue(apps.drop(offset).take(limit).map { Value.Text(when (format) { "label" -> it.label; "both" -> "${it.label} (${it.packageName})"; else -> it.packageName }) })
+    }
     override suspend fun shortcutCount() = (context as ShortcutsApplication).shortcuts.list().size
     override suspend fun vibrate(milliseconds: Long, amplitude: Int) = withContext(Dispatchers.Main.immediate) {
         val vibrator = if (android.os.Build.VERSION.SDK_INT >= 31) context.getSystemService(android.os.VibratorManager::class.java).defaultVibrator else { @Suppress("DEPRECATION") context.getSystemService(android.os.Vibrator::class.java) }

@@ -12,4 +12,4 @@
 - 编辑器导出旁提供撤销、重做弯箭头；三者长按显示提示。撤销覆盖增删、整组移动、参数、名称和外观；同一字段连续输入合并成一次，最多保留 100 个快照。撤销后产生新修改会清空重做分支，切换新编辑器时重新开始历史；恢复操作会清掉旧运行结果并保存当前草稿。
 - 获取 URL 内容支持 GET、POST、PUT、PATCH、DELETE，以及运行时询问或从变量指定方法；支持查询参数、请求头、JSON/表单/文件/文本请求体。新增扩展 URL、获取 URL 头部、获取 URL 组件；已有从输入中获取 URL 可提取多个链接，输出列表。实现与边界见 [网络操作](NETWORK.md)。
 
-变量语义参考 [Apple 快捷指令变量说明](https://support.apple.com/en-mide/guide/shortcuts/apdd2b316022/ios)。当前验证范围与 APK 校验见 [验证记录](VERIFICATION.md)。
+变量语义参考 [Apple 快捷指令变量说明](https://support.apple.com/en-mide/guide/shortcuts/apdd2b316022/ios)。当前验证范围与 APK 校验见 [验证记录](VERIFICATION-1.0.2-Re-Release.md)。

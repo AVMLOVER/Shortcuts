@@ -13,7 +13,7 @@ data class HomeState(val loading: Boolean = true, val items: List<Shortcut> = em
     val privilege: PrivilegeStatus = PrivilegeStatus(ExecutionMode.STANDARD, true, "standard_ready"), val runningId: String? = null,
     val result: RunResult? = null, val error: String? = null, val notice: String? = null, val storageReady: Boolean = false,
     val authorizing: Boolean = false, val saving: Boolean = false, val currentStepId: String? = null,
-    val locationEnabled: Boolean = false, val cameraEnabled: Boolean = false, val albumStatus: String = "not_allowed", val overlayEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
+    val locationEnabled: Boolean = false, val cameraEnabled: Boolean = false, val calendarReadEnabled: Boolean = false, val calendarWriteEnabled: Boolean = false, val albumStatus: String = "not_allowed", val overlayEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
 data class EditorState(val original: Shortcut, val name: String = original.name, val steps: List<ActionStep> = original.steps, val icon: String = original.icon, val color: String = original.color, val layoutVersion: Int = 0, val referenceVersion: Int = 0, val canUndo: Boolean = false, val canRedo: Boolean = false) {
     val dirty get() = name != original.name || steps != original.steps || icon != original.icon || color != original.color
     fun shortcut() = original.copy(name = name.trim(), steps = steps, icon = icon, color = color, updatedAt = maxOf(original.updatedAt, System.currentTimeMillis()))
@@ -49,7 +49,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         if (mutationJob?.isActive == true) return
         mutationJob = viewModelScope.launch {
             try { val items = app.shortcuts.list(); val folders = app.folders.list(); val settings = app.settings.load(); mutable.update { it.copy(items = items, folders = folders, settings = settings, storageReady = true,
-                locationEnabled = AndroidLocation.hasPermission(app), cameraEnabled = MediaPermissions.camera(app), albumStatus = MediaPermissions.albumStatus(app), overlayEnabled = android.provider.Settings.canDrawOverlays(app), notificationsEnabled = androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled(), batteryExempt = app.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName)) }; refreshPrivileges()
+                locationEnabled = AndroidLocation.hasPermission(app), cameraEnabled = MediaPermissions.camera(app), calendarReadEnabled = MediaPermissions.granted(app, android.Manifest.permission.READ_CALENDAR), calendarWriteEnabled = MediaPermissions.granted(app, android.Manifest.permission.WRITE_CALENDAR), albumStatus = MediaPermissions.albumStatus(app), overlayEnabled = android.provider.Settings.canDrawOverlays(app), notificationsEnabled = androidx.core.app.NotificationManagerCompat.from(app).areNotificationsEnabled(), batteryExempt = app.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName)) }; refreshPrivileges()
             } catch (e: Exception) { if (e is CancellationException) throw e; report(e); mutable.update { it.copy(storageReady = false) }
             } finally { mutable.update { it.copy(loading = false) } }
         }
@@ -60,7 +60,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val existing = app.shortcuts.list().find { it.id == id }
                 val sample = WorkflowExamples.dictionaryCalculation()
-                val original = existing ?: if (template == "dictionary") sample.copy(id = id, name = app.tr("examples"), steps = sample.steps.map { if (it.type == "text") it.copy(parameters = it.parameters + ("value" to app.tr("example_total"))) else it }) else Shortcut(id = id, name = app.tr("new_shortcut"))
+                val original = existing ?: if (template == "dictionary") sample.copy(id = id, uuid = stableShortcutUuid(id), name = app.tr("examples"), steps = sample.steps.map { if (it.type == "text") it.copy(parameters = it.parameters + ("value" to app.tr("example_total"))) else it }) else Shortcut(id = id, name = app.tr("new_shortcut"))
                 val draftFile = draftFile(id)
                 val restored = withContext(Dispatchers.IO) { if (draftFile.isFile) XmlCodec().decode(draftFile.inputStream().use { it.readBytesBounded(XmlCodec.MAX_BYTES) }) else null }
                 history.clear()
@@ -201,7 +201,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     fun save(shortcut: Shortcut, onSaved: () -> Unit = {}) = mutate { require(shortcut.steps.isNotEmpty()) { throw Problem("err_empty_shortcut") }; app.shortcuts.save(shortcut); val items = app.shortcuts.list(); mutable.update { it.copy(items = items) }; ShortcutWidgets.updateAll(app); onSaved() }
     fun importShortcuts(shortcuts: List<Shortcut>) = mutate {
         val now = System.currentTimeMillis()
-        val copies = shortcuts.filter { it.steps.isNotEmpty() }.map { it.copy(id = UUID.randomUUID().toString(), updatedAt = maxOf(it.updatedAt, now), folderId = "") }
+        val copies = ShortcutCopies.importCopies(shortcuts.filter { it.steps.isNotEmpty() }, now)
         require(copies.isNotEmpty()) { throw Problem("err_empty_shortcut") }
         app.shortcuts.importNew(copies)
         val items = app.shortcuts.list()

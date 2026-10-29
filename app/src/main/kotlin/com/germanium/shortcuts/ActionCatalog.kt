@@ -25,7 +25,7 @@ object ActionCatalog {
     private val dictionary = ActionField("dictionary", "dictionary_source", "{{input}}")
     private val key = ActionField("key", "key", "name")
     private val valueType = ActionField("valueType", "value_type", "auto", choices = valueTypes)
-    val all = ContentActionCatalog.all + listOf(
+    private val definitions = ContentActionCatalog.all + listOf(
         ActionDefinition("text", "basic", "T", listOf(ActionField("value", "text_type", multiline = true))),
         ActionDefinition("number", "math", "123", listOf(ActionField("value", "number_type", "0"))),
         ActionDefinition("current_location", "device", "◎", emptyList()),
@@ -65,6 +65,10 @@ object ActionCatalog {
         ActionDefinition("if", "control", "?", listOf(ActionField("left", "left", "{{input}}"), ActionField("operator", "operator", "equals", choices = ShortcutEngine.CONDITIONS.map { it to it }), ActionField("right", "right"))),
         ActionDefinition("menu", "control", "☰", listOf(ActionField("title", "title", contextFreeMenuTitle()))),
         ActionDefinition("repeat", "control", "↻", listOf(ActionField("count", "count", "2"))),
+        ActionDefinition("run_shortcut", "basic", "▶", listOf(ActionField("selection", "shortcut_selection", "preset", choices = listOf("preset" to "shortcut_preset", "ask" to "ask_each_time")), ActionField("shortcutUuid", "choose_shortcut"), ActionField("input", "shortcut_input", "{{input}}", true))),
+        ActionDefinition("return", "basic", "↩", listOf(value)),
+        ActionDefinition("end_shortcut", "basic", "■", emptyList()),
+        ActionDefinition("get_application_list", "device", "▦", listOf(ActionField("includeSystem", "show_system_apps", "false", choices = boolean), ActionField("format", "application_list_format", "package", choices = listOf("package" to "package_name", "label" to "application_label", "both" to "application_label_package")), ActionField("offset", "application_list_offset", "0"), ActionField("limit", "application_list_limit", "256"))),
         ActionDefinition("stop", "control", "■", listOf(value)),
         ActionDefinition("notification", "system", "♧", listOf(ActionField("title", "title", "Shortcuts"), ActionField("body", "body", "{{input}}", true))),
         ActionDefinition("calendar", "system", "▣", listOf(ActionField("title", "title"), ActionField("start", "start"), ActionField("end", "end"), ActionField("description", "description", multiline = true), ActionField("location", "location"), ActionField("calendarId", "calendar_id"), ActionField("reminderMinutes", "reminder"))),
@@ -107,6 +111,7 @@ object ActionCatalog {
                 (if (operation in listOf("create_folder", "list_files")) emptyList() else listOf(ActionField("filename", "filename", "note.txt"))) +
                 (if (operation in listOf("write_file", "append_file")) listOf(ActionField("content", "content", "{{input}}", true)) else emptyList()))
         }
+    val all = definitions.filter { it.group == "basic" } + definitions.filter { it.group != "basic" }
     private fun contextFreeMenuTitle() = ""
     private val byType = all.associateBy { it.type }
     fun find(type: String) = byType[type]

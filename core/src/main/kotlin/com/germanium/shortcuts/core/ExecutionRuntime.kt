@@ -21,8 +21,8 @@ data class StepResult(val stepId: String, val type: String, val value: Value, va
 data class RunResult(
     val status: RunStatus, val steps: List<StepResult>, val error: String? = null,
     val variables: Map<String, Value> = emptyMap(), val failedStepId: String? = null, val failure: Throwable? = null,
-    val executedCount: Int = steps.size, val historyTruncated: Boolean = false,
-) { val output: String get() = steps.lastOrNull()?.output.orEmpty() }
+    val executedCount: Int = steps.size, val historyTruncated: Boolean = false, val finalValue: Value? = null, val valueOrigins: Set<InputOrigin> = emptySet(),
+) { val output: String get() = finalValue?.text() ?: steps.lastOrNull()?.output.orEmpty() }
 
 data class RunTrace(val event: String, val stepId: String? = null, val type: String? = null, val failure: Throwable? = null)
 class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), private val platform: PlatformActions = PlatformActions.Unavailable) {
@@ -31,10 +31,10 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
     private fun compile(steps: List<ActionStep>): List<Node> = steps.filter { it.enabled }.map { step ->
         step.parameters["resultVariable"]?.takeIf(String::isNotBlank)?.let(::validateVariableName)
         val handler = when (step.type) {
-            "if" -> { require(step.branches.count { it.id == "then" } == 1 && step.branches.all { it.id in listOf("then", "else") }) { throw Problem("err_branches") }; require(step.parameters.getOrDefault("operator", "equals") in CONDITIONS) { throw Problem("err_condition") }; null }
+            "if" -> { require(step.branches.count { it.id == "then" } == 1 && step.branches.all { it.id in listOf("then", "else") }) { throw Problem("err_branches") }; require(step.parameters.getOrDefault("operator", "equals") in CONDITIONS + SOURCE_CONDITIONS) { throw Problem("err_condition") }; null }
             "menu" -> { require(step.branches.isNotEmpty() && step.branches.all { it.label.isNotBlank() }) { throw Problem("err_menu") }; null }
             "repeat", "repeat_each", "repeat_until" -> { require(step.branches.size == 1 && step.branches.single().id == "body") { throw Problem("err_branches") }; if (step.type == "repeat_until") require(step.parameters.getOrDefault("operator", "equals") in CONDITIONS) { throw Problem("err_condition") }; null }
-            "stop" -> { require(step.branches.isEmpty()) { throw Problem("err_branches") }; null }
+            "stop", "return", "end_shortcut", "run_shortcut" -> { require(step.branches.isEmpty()) { throw Problem("err_branches") }; null }
             else -> { require(step.branches.isEmpty()) { throw Problem("err_branches") }; registry.require(step.type).also { it.validate(step.parameters) } }
         }
         Node(step, handler, step.branches.associate { it.id to compile(it.steps) })
@@ -42,33 +42,39 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
     fun validate(shortcut: Shortcut) { compile(shortcut.steps) }
     private sealed interface Frame
     private class Block(val nodes: List<Node>, var index: Int = 0, val complete: (() -> Unit)? = null) : Frame
-    private class Loop(val node: Node, val count: Int, val items: List<Value>?, val previousIndex: Value?, val previousItem: Value?, var index: Int = 0, val results: MutableList<Value> = mutableListOf(), var resultLength: Long = 0) : Frame
-    suspend fun run(shortcut: Shortcut, mode: ExecutionMode, input: String = "", onStep: (String) -> Unit = {}, onTrace: ((RunTrace) -> Unit)? = null, angleUnit: AngleUnit = AngleUnit.DEGREES, typedInput: Value? = null): RunResult {
+    private class Loop(val node: Node, val count: Int, val items: List<Value>?, val previousIndex: Value?, val previousItem: Value?, val previousIndexOrigins: Set<InputOrigin>, val previousItemOrigins: Set<InputOrigin>, var index: Int = 0, val results: MutableList<Value> = mutableListOf(), var resultLength: Long = 0) : Frame
+    private class Budget(var executed: Int = 0)
+    suspend fun run(shortcut: Shortcut, mode: ExecutionMode, input: String = "", onStep: (String) -> Unit = {}, onTrace: ((RunTrace) -> Unit)? = null, angleUnit: AngleUnit = AngleUnit.DEGREES, typedInput: Value? = null, inputOrigin: InputOrigin = InputOrigin.NONE): RunResult {
         check(mutex.tryLock()) { "err_busy" }
+        try { return execute(shortcut, mode, typedInput ?: Value.Text(input), inputOrigin, onStep, onTrace, angleUnit, Budget(), emptySet()) }
+        finally { mutex.unlock() }
+    }
+    private suspend fun execute(shortcut: Shortcut, mode: ExecutionMode, originalInput: Value, source: InputOrigin, onStep: (String) -> Unit, onTrace: ((RunTrace) -> Unit)?, angleUnit: AngleUnit, budget: Budget, ancestors: Set<String>): RunResult {
+        require(ancestors.size < 16 && shortcut.uuid !in ancestors) { throw Problem("err_call_cycle") }
         val results = mutableListOf<StepResult>(); val variables = VariableScope()
         val stack = java.util.ArrayDeque<Frame>()
-        val originalInput = typedInput ?: Value.Text(input)
         var currentStep: String? = null; var executed = 0; var value: Value = originalInput
+        var origins = if (source == InputOrigin.NONE) emptySet() else setOf(source)
         var historyLength = 0L; var historyTruncated = false
         fun trace(event: String, step: ActionStep? = null, failure: Throwable? = null) { onTrace?.let { callback -> runCatching { callback(RunTrace(event, step?.id, step?.type, failure)) } } }
         fun finish(step: ActionStep, properties: Map<String, Value> = emptyMap()) {
             currentStep = step.id
             require(value.text().length <= if (step.type in listOf("encode_base64", "decode_base64")) 4 * 1024 * 1024 else 262144) { throw Problem("err_size") }
             if (ActionOutputs.produces(step.type)) {
-                variables.record(step.id, value)
-                properties.forEach { (key, property) -> variables.record("${step.id}.$key", property) }
-                step.parameters["resultVariable"]?.takeIf(String::isNotBlank)?.let { variables.set(it, value) }
+                variables.record(step.id, value, origins)
+                properties.forEach { (key, property) -> variables.record("${step.id}.$key", property, origins) }
+                step.parameters["resultVariable"]?.takeIf(String::isNotBlank)?.let { variables.set(it, value, origins) }
             }
             results += StepResult(step.id, step.type, value, properties); historyLength += value.text().length
             while (results.size > 1 && (historyLength > 2097152 || results.size > 1000)) { historyLength -= results.removeAt(0).output.length; historyTruncated = true }
             trace("step_end", step)
         }
         fun restore(loop: Loop) {
-            if (loop.previousIndex == null) variables.remove("repeat_index") else variables.set("repeat_index", loop.previousIndex)
-            if (loop.items != null) { if (loop.previousItem == null) variables.remove("repeat_item") else variables.set("repeat_item", loop.previousItem) }
+            if (loop.previousIndex == null) variables.remove("repeat_index") else variables.set("repeat_index", loop.previousIndex, loop.previousIndexOrigins)
+            if (loop.items != null) { if (loop.previousItem == null) variables.remove("repeat_item") else variables.set("repeat_item", loop.previousItem, loop.previousItemOrigins) }
         }
         fun unwind() { stack.toList().asReversed().filterIsInstance<Loop>().forEach { runCatching { restore(it) } }; stack.clear() }
-        fun success() = RunResult(RunStatus.SUCCEEDED, results, variables = variables.snapshot(), executedCount = executed, historyTruncated = historyTruncated)
+        fun success() = RunResult(RunStatus.SUCCEEDED, results, variables = variables.snapshot(), executedCount = executed, historyTruncated = historyTruncated, finalValue = value, valueOrigins = origins)
         try {
             trace("run_start"); stack.addLast(Block(compile(shortcut.steps)))
             while (stack.isNotEmpty()) {
@@ -77,9 +83,9 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                     is Block -> {
                         if (frame.index >= frame.nodes.size) { stack.removeLast(); frame.complete?.invoke(); continue }
                         val node = frame.nodes[frame.index++]; val step = node.step
-                        require(++executed <= 5000) { throw Problem("err_step_limit") }
+                        executed++; require(++budget.executed <= 5000) { throw Problem("err_step_limit") }
                         currentStep = step.id; onStep(step.id); trace("step_start", step)
-                        val context = RunContext(mode, value, variables, angleUnit, originalInput)
+                        val context = RunContext(mode, value, variables, angleUnit, originalInput, source, origins)
                         when (step.type) {
                             "if" -> {
                                 val selected = if (evaluateCondition(step.parameters, context)) "then" else "else"
@@ -96,16 +102,28 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                                 val items = if (step.type == "repeat_each") asList(context.resolve(step.parameters["source"] ?: "{{input}}")) else null
                                 val count = if (step.type == "repeat_until") 1000 else items?.size ?: (context.text(step.parameters, "count", "2").toIntOrNull() ?: throw Problem("err_repeat"))
                                 require(count in (if (items == null) 1 else 0)..1000) { throw Problem("err_repeat") }
-                                stack.addLast(Loop(node, count, items, variables.snapshot()["repeat_index"], variables.snapshot()["repeat_item"]))
+                                stack.addLast(Loop(node, count, items, variables.snapshot()["repeat_index"], variables.snapshot()["repeat_item"], variables.origins("repeat_index"), variables.origins("repeat_item")))
                             }
-                            "stop" -> { value = context.resolve(step.parameters["value"] ?: "{{input}}"); finish(step); unwind(); trace("run_stopped"); return success() }
-                            else -> { value = node.handler!!.execute(step.parameters, context); finish(step) }
+                            "run_shortcut" -> {
+                                val choices = platform.shortcutsForCall()
+                                if (step.parameters["selection"] == "ask" && choices.isEmpty()) throw Problem("err_shortcut_missing")
+                                val target = if (step.parameters["selection"] == "ask") platform.chooseShortcut(choices) ?: throw CancellationException("Shortcut selection cancelled") else context.text(step.parameters, "shortcutUuid")
+                                val child = platform.shortcutsForCall().firstOrNull { it.uuid == target } ?: throw Problem("err_shortcut_missing")
+                                val returned = execute(child, mode, context.resolve(step.parameters["input"] ?: "{{input}}"), InputOrigin.SHORTCUT, { onStep(step.id) }, onTrace, angleUnit, budget, ancestors + shortcut.uuid)
+                                if (returned.status == RunStatus.FAILED) throw returned.failure ?: Problem("err_child_shortcut")
+                                value = returned.finalValue ?: Value.Text(returned.output); origins = returned.valueOrigins
+                                finish(step)
+                            }
+                            "return" -> { value = context.resolve(step.parameters["value"] ?: "{{input}}"); origins = context.originsOf(step.parameters["value"] ?: "{{input}}"); finish(step); unwind(); trace("run_returned"); return success() }
+                            "end_shortcut" -> { value = Value.Text(""); origins = emptySet(); finish(step); unwind(); trace("run_stopped"); return success() }
+                            "stop" -> { value = context.resolve(step.parameters["value"] ?: "{{input}}"); origins = context.originsOf(step.parameters["value"] ?: "{{input}}"); finish(step); unwind(); trace("run_stopped"); return success() }
+                            else -> { value = node.handler!!.execute(step.parameters, context); origins = InputProvenance.outputOrigins(step, context); finish(step) }
                         }
                     }
                     is Loop -> {
                         if (frame.node.step.type == "repeat_until" && frame.index > 0) {
                             currentStep = frame.node.step.id
-                            if (evaluateCondition(frame.node.step.parameters, RunContext(mode, value, variables, angleUnit, originalInput))) {
+                            if (evaluateCondition(frame.node.step.parameters, RunContext(mode, value, variables, angleUnit, originalInput, source, origins))) {
                                 restore(frame); stack.removeLast(); finish(frame.node.step, mapOf("repeatCount" to Value.Number(frame.index.toBigDecimal()))); continue
                             }
                             require(frame.index < frame.count) { throw Problem("err_repeat_limit") }
@@ -116,7 +134,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                             finish(frame.node.step)
                         } else {
                             variables.set("repeat_index", Value.Number((frame.index + 1).toBigDecimal()))
-                            frame.items?.let { value = it[frame.index]; variables.set("repeat_item", value) }
+                            frame.items?.let { value = it[frame.index]; variables.set("repeat_item", value, origins) }
                             frame.index++
                             stack.addLast(Block(frame.node.branches.getValue("body"), complete = {
                                 if (frame.items != null) {
@@ -133,9 +151,9 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
             trace("run_success"); return success()
         } catch (e: CancellationException) { unwind(); trace("run_cancelled"); throw e
         } catch (e: Exception) { unwind(); trace("run_failed", failure = e); return RunResult(RunStatus.FAILED, results, e.message ?: e.javaClass.simpleName, variables.snapshot(), currentStep, e, executed, historyTruncated)
-        } finally { mutex.unlock() }
+        }
     }
-    companion object { val CONDITIONS = setOf("equals", "not_equals", "contains", "not_contains", "greater", "less", "greater_equal", "less_equal", "is_empty", "is_not_empty", "is_true", "matches") }
+    companion object { val SOURCE_CONDITIONS = setOf("source_system_share", "source_shortcut"); val CONDITIONS = setOf("equals", "not_equals", "contains", "not_contains", "greater", "less", "greater_equal", "less_equal", "is_empty", "is_not_empty", "is_true", "matches") }
 }
 
 internal class Handler(
@@ -166,7 +184,7 @@ fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = Ac
             "boolean" -> Value.BooleanValue(when (c.render(source)) { "true" -> true; "false" -> false; else -> throw Problem("err_invalid_data") })
             else -> c.resolve(source)
         }
-        c.variables.set(p.getValue("name"), value); value
+        c.variables.set(p.getValue("name"), value, c.originsOf(source)); value
     },
     Handler("get_variable", { require(it["name"].orEmpty().isNotBlank()) { throw Problem("err_variable_name") } }) { p, c -> c.reference(p.getValue("name")) },
     Handler("calculate") { p, c ->
