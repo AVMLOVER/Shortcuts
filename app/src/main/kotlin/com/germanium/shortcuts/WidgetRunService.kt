@@ -54,7 +54,7 @@ class WidgetRunService : Service() {
     private var currentTheme = ThemeMode.SYSTEM
     private val interactionHandler: (Interaction) -> Boolean = { request ->
         if (!widgetInteractionSupported(request) || !Settings.canDrawOverlays(this)) false
-        else { scope.launch { if (app.interactions.current.value === request && !mountOverlay(request,"",currentTheme)) showInteractionNotification(app) }; true }
+        else { scope.launch { if (app.interactions.current.value === request && !mountOverlay(request,Value.Text(""),currentTheme)) showInteractionNotification(app) }; true }
     }
     private val interactionResolved: () -> Unit = { scope.launch { if (activeRequestId != null && app.interactions.current.value == null) clearOverlay() }; Unit }
     override fun onBind(intent: Intent?) = null
@@ -81,17 +81,23 @@ class WidgetRunService : Service() {
                 run = app.runs.start(shortcut, settings.mode, fromWidget = true) ?: throw Problem("err_busy")
                 run.join()
                 val state = app.runs.state.value
-                if (state.shortcutId == id) showOutput(state.error ?: state.notice ?: state.previewOutput ?: state.result?.output.orEmpty(), settings.theme)
+                if (state.shortcutId == id) {
+                    val output=(state.error ?: state.notice)?.let{Value.Text(it)} ?: state.previewValue ?: state.result?.outputValue ?: Value.Text("")
+                    val shown=showOutput(output,settings.theme)
+                    val attachment=withContext(Dispatchers.IO){DisplayContent.items(output).any{it is Value.Text&&AndroidContent(app).isFile(it.value)}}
+                    if(shown&&attachment)awaitCancellation()
+                }
                 delay(7000)
-            } catch (e: Exception) { if (e is CancellationException) { run?.cancel(); throw e }; app.diagnostics.trace("widget_run_failed", e); showOutput(app.describe(e), ThemeMode.SYSTEM); delay(7000) }
+            } catch (e: Exception) { if (e is CancellationException) { run?.cancel(); throw e }; app.diagnostics.trace("widget_run_failed", e); showOutput(Value.Text(app.describe(e)), ThemeMode.SYSTEM); delay(7000) }
             finally { stopSelf(startId) }
         }
         return START_NOT_STICKY
     }
-    private fun showOutput(text: String, theme: ThemeMode) {
-        if (!mountOverlay(null,text,theme)) requireOverlayPermission()
+    private fun showOutput(text: Value, theme: ThemeMode):Boolean {
+        if (mountOverlay(null,text,theme)) return true
+        requireOverlayPermission();return false
     }
-    private fun mountOverlay(request: Interaction?, text: String, theme: ThemeMode): Boolean {
+    private fun mountOverlay(request: Interaction?, text: Value, theme: ThemeMode): Boolean {
         if (!Settings.canDrawOverlays(this)) return false
         clearOverlay()
         activeRequestId = request?.id

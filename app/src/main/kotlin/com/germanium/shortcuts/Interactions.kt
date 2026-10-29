@@ -21,7 +21,10 @@ sealed class Interaction {
     class Checklist(val title: String, val items: List<Pair<String, String>>) : Interaction()
     class Foreground : Interaction()
     class Capture(val folder: String, val filename: String) : Interaction()
-    class ResultDialog(val title: String, val body: String, val allowCancel: Boolean) : Interaction()
+    class ResultDialog(val title: String, val content: com.germanium.shortcuts.core.Value, val allowCancel: Boolean) : Interaction() {
+        constructor(title: String, body: String, allowCancel: Boolean) : this(title, com.germanium.shortcuts.core.Value.Text(body), allowCancel)
+        val body: String get() = content.text()
+    }
     class Html(val html: String) : Interaction()
     class PickFile(val imageOnly: Boolean) : Interaction()
     class TakePhoto : Interaction()

@@ -2,6 +2,9 @@ package com.germanium.shortcuts
 
 import android.content.Intent
 import android.provider.OpenableColumns
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -405,7 +408,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (ActionOutputs.produces(step.type)) TextButton(onClick = { model.addVariableAfter(step.id) }, enabled = !busy && flatSteps.size < MAX_WORKFLOW_ACTIONS) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("add_variable")) }
                                 if (step.type == "if" && step.branches.none { it.id == "else" }) OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch("else"))) }, enabled = !busy) { Text(t("add_else")) }
                                 if (step.type == "menu") OutlinedButton(onClick = { model.update(step.copy(branches = step.branches + ActionBranch(label = context.tr("menu_item") + " ${step.branches.size + 1}"))) }, enabled = !busy && step.branches.size < 30) { Text(t("add_menu_item")) }
-                                observed[step.id]?.let { result -> Text(t("result") + ": " + result.output.take(512), style = MaterialTheme.typography.bodySmall) }
+                                observed[step.id]?.let { result -> if (step.type == "output") QuickLookContent(context.applicationContext as ShortcutsApplication,result.value) else Text(t("result") + ": " + result.output.take(512), style = MaterialTheme.typography.bodySmall) }
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     ToolIcon(R.drawable.ic_up, "move_up", !busy && row.index > 0, modifier = Modifier.testTag("move_up_${step.id}")) { model.move(step.id, -1) }
                                     ToolIcon(R.drawable.ic_down, "move_down", !busy && row.index < row.size - 1, modifier = Modifier.testTag("move_down_${step.id}")) { model.move(step.id, 1) }
@@ -441,15 +444,17 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                 DragInsertionGap(gapAfter, indent.onGloballyPositioned { if (gapAfter) drag.gapBounds = Rect(it.positionInRoot(), it.size.toSize()) })
                 }
             }
-            state.result?.let { result -> item { ResultCard(result); TextButton(onClick = { scope.launch { (context.applicationContext as ShortcutsApplication).actions.quickLook(result.steps.lastOrNull()?.value ?: Value.Text("")) } }) { Text(t("quick_look")) } } }
+            state.result?.let { result -> item { ResultCard(result); TextButton(onClick = { scope.launch { (context.applicationContext as ShortcutsApplication).actions.quickLook(result.outputValue) } }) { Text(t("quick_look")) } } }
         }
         DragPreview(drag)
         }
     }
     if (appearancePicker) ShortcutAppearancePicker(editor.icon, editor.color, { appearancePicker = false }, model::editAppearance)
-    if (library) {
+    AnimatedVisibility(library, enter=fadeIn(tween(180)),exit=if(libraryDragging) ExitTransition.None else fadeOut(tween(160)),modifier=Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f)).clickable { library = false })
-        ActionLibrary(onDismiss = { library = false }, onAdd = ::addFromLibrary, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    AnimatedVisibility(library,enter=slideInVertically(tween(320,easing=FastOutSlowInEasing)){it}+fadeIn(tween(180)),exit=if(libraryDragging) ExitTransition.None else slideOutVertically(tween(220,easing=FastOutSlowInEasing)){it}+fadeOut(tween(140)),modifier=Modifier.align(Alignment.BottomCenter)) {
+        ActionLibrary(onDismiss = { library = false }, onAdd = ::addFromLibrary)
     }
     if (apps) AppsPicker(onDismiss = { apps = false; reselect = null }, onError = model::report, allPackages = byId[reselect]?.type == "intent") { selected ->
         val target = byId[reselect]

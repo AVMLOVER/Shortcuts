@@ -9,6 +9,13 @@ import com.germanium.shortcuts.core.FutureShortcutVersion
 
 object Texts {
     val ids: Map<String, Int> = mapOf(
+        "document_preview" to R.string.ui_document_preview,
+        "document_page" to R.string.ui_document_page,
+        "previous_page" to R.string.ui_previous_page,
+        "next_page" to R.string.ui_next_page,
+        "document_external" to R.string.ui_document_external,
+        "open_document" to R.string.ui_open_document,
+        "err_open_document" to R.string.ui_err_open_document,
         "action_write_partition" to R.string.ui_action_write_partition,
         "partition_target" to R.string.ui_partition_target,
         "choose_partition_image" to R.string.ui_choose_partition_image,

@@ -788,4 +788,11 @@
     <string name="ui_err_partition_size">镜像为空或大于目标分区，拒绝写入。</string>
     <string name="ui_err_partition_sparse">不支持 Android sparse 镜像，请先转换为 raw .img。</string>
     <string name="ui_err_partition_write">分区写入未正常完成。可能已部分写入，请检查设备状态。</string>
+    <string name="ui_document_preview">文档预览</string>
+    <string name="ui_document_page">第 %1$d / %2$d 页</string>
+    <string name="ui_previous_page">上一页</string>
+    <string name="ui_next_page">下一页</string>
+    <string name="ui_document_external">此格式可使用其他应用打开。</string>
+    <string name="ui_open_document">打开文档</string>
+    <string name="ui_err_open_document">无法打开文档，请检查文件权限或安装支持此格式的应用。</string>
 </resources>

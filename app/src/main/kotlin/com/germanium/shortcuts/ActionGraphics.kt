@@ -31,8 +31,8 @@ import kotlinx.coroutines.launch
 @Composable internal fun HomeResult(result: RunResult) {
     Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(Modifier.fillMaxWidth().padding(20.dp)) {
-            SelectionContainer(Modifier.weight(1f)) { Text(result.output.ifEmpty { t("no_output") }, style = MaterialTheme.typography.bodyLarge) }
-            ShareValueButton(result.steps.lastOrNull()?.value ?: Value.Text(""))
+            QuickLookContent(LocalContext.current.applicationContext as ShortcutsApplication, result.outputValue, Modifier.weight(1f))
+            ShareValueButton(result.outputValue)
         }
     }
 }

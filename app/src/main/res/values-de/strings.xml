@@ -788,4 +788,11 @@
     <string name="ui_err_partition_size">Abbild ist leer oder größer als die Zielpartition. Schreiben abgelehnt.</string>
     <string name="ui_err_partition_sparse">Android-Sparse-Abbilder werden nicht unterstützt. Zuerst in raw .img konvertieren.</string>
     <string name="ui_err_partition_write">Partitionsschreiben nicht abgeschlossen. Möglicherweise teilweise geschrieben; Gerätestatus prüfen.</string>
+    <string name="ui_document_preview">Dokumentvorschau</string>
+    <string name="ui_document_page">Seite %1$d von %2$d</string>
+    <string name="ui_previous_page">Vorherige Seite</string>
+    <string name="ui_next_page">Nächste Seite</string>
+    <string name="ui_document_external">Dieses Format mit einer anderen App öffnen.</string>
+    <string name="ui_open_document">Dokument öffnen</string>
+    <string name="ui_err_open_document">Das Dokument kann nicht geöffnet werden. Zugriff prüfen oder eine passende App installieren.</string>
 </resources>

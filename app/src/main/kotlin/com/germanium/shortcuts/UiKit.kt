@@ -144,7 +144,7 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
     }
     when (val active = request.takeIf { lifecycleState.isAtLeast(Lifecycle.State.RESUMED) }) {
         is Interaction.ImageEdit -> ImageEditDialog(app, active)
-        is Interaction.ResultDialog -> AlertDialog(onDismissRequest = { if (active.allowCancel) app.interactions.reply(active, null) }, title = { Text(active.title) }, text = { SelectionContainer { Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) { Text(active.body) } } },
+        is Interaction.ResultDialog -> AlertDialog(onDismissRequest = { if (active.allowCancel) app.interactions.reply(active, null) }, title = { Text(active.title) }, text = { QuickLookContent(app, active.content) },
             confirmButton = { TextButton(onClick = { app.interactions.reply(active, "ok") }, modifier = Modifier.testTag("confirm_result")) { Text(t("confirm")) } },
             dismissButton = if (active.allowCancel) ({ TextButton(onClick = { app.interactions.reply(active, null) }, modifier = Modifier.testTag("cancel_result")) { Text(t("cancel")) } }) else null)
         is Interaction.Html -> HtmlPreviewDialog(active.html) { app.interactions.reply(active, "ok") }
@@ -205,8 +205,9 @@ object StartupPermissions {
 @Composable fun ResultCard(result: RunResult) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(t(if (result.status == RunStatus.SUCCEEDED) "run_success" else "run_failed"), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium); ShareValueButton(result.steps.lastOrNull()?.value ?: Value.Text("")) }
-        SelectionContainer { Text((result.failure?.let(context::describe) ?: result.output.ifEmpty { t("no_output") }).take(8192)) }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text(t(if (result.status == RunStatus.SUCCEEDED) "run_success" else "run_failed"), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium); ShareValueButton(result.outputValue) }
+        val failure=result.failure
+        if (failure != null) Text(context.describe(failure)) else QuickLookContent(context.applicationContext as ShortcutsApplication, result.outputValue)
         Text(t("actions_count", result.executedCount), style = MaterialTheme.typography.labelMedium)
         if (result.historyTruncated) Text(t("history_limited"), style = MaterialTheme.typography.bodySmall)
         result.variables.forEach { (name, value) -> Text("$name = ${value.text().take(512)}", style = MaterialTheme.typography.bodySmall) }

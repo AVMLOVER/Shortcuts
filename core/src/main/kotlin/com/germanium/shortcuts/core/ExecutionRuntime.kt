@@ -22,7 +22,10 @@ data class RunResult(
     val status: RunStatus, val steps: List<StepResult>, val error: String? = null,
     val variables: Map<String, Value> = emptyMap(), val failedStepId: String? = null, val failure: Throwable? = null,
     val executedCount: Int = steps.size, val historyTruncated: Boolean = false, val finalValue: Value? = null, val valueOrigins: Set<InputOrigin> = emptySet(),
-) { val output: String get() = finalValue?.text() ?: steps.lastOrNull()?.output.orEmpty() }
+) {
+    val outputValue: Value get() = finalValue ?: steps.lastOrNull()?.value ?: Value.Text("")
+    val output: String get() = outputValue.text()
+}
 
 data class RunTrace(val event: String, val stepId: String? = null, val type: String? = null, val failure: Throwable? = null)
 class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), private val platform: PlatformActions = PlatformActions.Unavailable) {

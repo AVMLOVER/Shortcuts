@@ -788,4 +788,11 @@
     <string name="ui_err_partition_size">映像為空或大於目標分割區，拒絕寫入。</string>
     <string name="ui_err_partition_sparse">不支援 Android sparse 映像，請先轉換為 raw .img。</string>
     <string name="ui_err_partition_write">分割區寫入未正常完成。可能已部分寫入，請檢查裝置狀態。</string>
+    <string name="ui_document_preview">文件預覽</string>
+    <string name="ui_document_page">第 %1$d / %2$d 頁</string>
+    <string name="ui_previous_page">上一頁</string>
+    <string name="ui_next_page">下一頁</string>
+    <string name="ui_document_external">此格式可使用其他 App 開啟。</string>
+    <string name="ui_open_document">開啟文件</string>
+    <string name="ui_err_open_document">無法開啟文件，請檢查檔案權限或安裝支援此格式的 App。</string>
 </resources>

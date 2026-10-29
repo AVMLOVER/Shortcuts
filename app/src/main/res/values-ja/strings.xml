@@ -788,4 +788,11 @@
     <string name="ui_err_partition_size">イメージが空、または対象より大きいため拒否しました。</string>
     <string name="ui_err_partition_sparse">Android sparse には非対応です。raw .img に変換してください。</string>
     <string name="ui_err_partition_write">書き込みが正常に完了しませんでした。一部書き込まれた可能性があります。状態を確認してください。</string>
+    <string name="ui_document_preview">書類プレビュー</string>
+    <string name="ui_document_page">%2$d ページ中 %1$d ページ</string>
+    <string name="ui_previous_page">前のページ</string>
+    <string name="ui_next_page">次のページ</string>
+    <string name="ui_document_external">この形式はほかのアプリで開けます。</string>
+    <string name="ui_open_document">書類を開く</string>
+    <string name="ui_err_open_document">書類を開けません。アクセス権を確認するか、対応アプリをインストールしてください。</string>
 </resources>

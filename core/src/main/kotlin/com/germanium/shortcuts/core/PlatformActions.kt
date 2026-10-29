@@ -23,6 +23,7 @@ interface PlatformActions {
     suspend fun quickLook(value: Value): Unit = error("Quick Look UI unavailable")
     suspend fun createCalendarEvent(event: CalendarEventSpec): String = error("Calendar backend unavailable")
     suspend fun postNotification(title: String, body: String): Unit = error("Notification backend unavailable")
+    suspend fun postNotification(title: String, body: Value): Unit = postNotification(title, body.text())
     suspend fun installApk(uri: String, mode: ExecutionMode): String = error("APK installation backend unavailable")
     suspend fun askInput(title: String, prompt: String, initial: String, type: String): String? = throw Problem("err_backend")
     suspend fun chooseMany(title: String, items: List<Pair<String, String>>): List<String>? = chooseMenu(title, items)?.let { listOf(it) }
@@ -38,6 +39,7 @@ interface PlatformActions {
     suspend fun readCalendarDay(day: CalendarDaySpec): Value = throw Problem("err_backend")
     suspend fun screenshot(folder: String, filename: String): Value = throw Problem("err_backend")
     suspend fun showResult(title: String, body: String, allowCancel: Boolean): Boolean = throw Problem("err_backend")
+    suspend fun showResult(title: String, body: Value, allowCancel: Boolean): Boolean = showResult(title, body.text(), allowCancel)
     suspend fun viewHtml(html: String): Unit = throw Problem("err_backend")
     suspend fun vibrate(milliseconds: Long, amplitude: Int): Unit = throw Problem("err_backend")
     suspend fun shortcutCount(): Int = throw Problem("err_backend")

@@ -16,26 +16,41 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.germanium.shortcuts.core.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.FileInputStream
 import java.time.ZoneId
 
 class AndroidSystemActions(private val context: Context, private val interactions: Interactions, private val foreground: () -> Activity?, private val shizuku: ShizukuShellBackend) {
+    private val notificationMutex=Mutex()
     private suspend fun permissions(vararg permissions: String) {
         if (permissions.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }) return
         interactions.ask(Interaction.Permissions(permissions.toList().toTypedArray()))
         if (permissions.any { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }) throw Problem("err_permission")
     }
-    suspend fun notify(title: String, body: String) {
+    suspend fun notify(title: String, body: Value) {
         if (Build.VERSION.SDK_INT >= 33) permissions(Manifest.permission.POST_NOTIFICATIONS)
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("shortcuts.actions", context.tr("notification_channel"), NotificationManager.IMPORTANCE_DEFAULT))
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled() || manager.getNotificationChannel("shortcuts.actions").importance == NotificationManager.IMPORTANCE_NONE) throw Problem("err_notification")
-        val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = NotificationCompat.Builder(context, "shortcuts.actions").setSmallIcon(R.drawable.ic_shortcuts_monochrome)
-            .setContentTitle(title.take(200)).setContentText(body.take(8192)).setStyle(NotificationCompat.BigTextStyle().bigText(body.take(8192)))
-            .setAutoCancel(true).setContentIntent(open).build()
-        manager.notify((System.nanoTime() and 0x7fffffff).toInt(), notification)
+        notificationMutex.withLock {
+            val app=context.applicationContext as ShortcutsApplication
+            val loader=AndroidPreviewContent(app);val entries=DisplayContent.items(body)
+            val descriptions=entries.take(16).map{if(it is Value.Text)loader.label(it.text()) else it.text()}
+            val summary=(descriptions.joinToString("\n")+if(entries.size>16) "\n"+context.tr("preview_limited") else "").take(8192)
+            var image:android.graphics.Bitmap?=null
+            for(entry in entries.take(4)){if(entry !is Value.Text)continue;val preview=loader.load(entry.text(),edge=768);if(preview?.image!=null){image=preview.image;break}}
+            val used=manager.activeNotifications.map{it.id}.toSet()
+            var id:Int;do{id=kotlin.random.Random.nextInt(10000,Int.MAX_VALUE)}while(id in used)
+            val open=NotificationContents.store(app,manager,id,title,body)
+            val builder=NotificationCompat.Builder(context,"shortcuts.actions").setSmallIcon(R.drawable.ic_shortcuts_monochrome)
+                .setContentTitle(title.take(200)).setContentText(summary).setAutoCancel(true).setContentIntent(open)
+            val picture=image
+            if(picture!=null)builder.setLargeIcon(picture).setStyle(NotificationCompat.BigPictureStyle().bigPicture(picture).setSummaryText(summary))
+            else builder.setStyle(NotificationCompat.BigTextStyle().bigText(summary))
+            manager.notify(id,builder.build())
+        }
     }
     suspend fun createEvent(event: CalendarEventSpec): String {
         permissions(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)

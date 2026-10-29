@@ -90,7 +90,7 @@ internal fun extraActions(platform: PlatformActions): List<ActionHandler> = list
         Value.Text(result.toString())
     },
     Handler("quick_look") { p, c -> val value = c.resolve(p["value"] ?: "{{input}}"); platform.quickLook(value); value },
-    Handler("notification") { p, c -> platform.postNotification(c.text(p, "title", "Shortcuts"), c.text(p, "body", "{{input}}")); c.value },
+    Handler("notification") { p, c -> platform.postNotification(c.text(p, "title", "Shortcuts"), c.resolve(p["body"] ?: "{{input}}")); c.value },
     Handler("calendar", { require(it["title"].orEmpty().isNotBlank() && it["start"].orEmpty().isNotBlank() && it["end"].orEmpty().isNotBlank()) { throw Problem("err_calendar") } }) { p, c ->
         val start = parseEventTime(c.text(p, "start")); val end = parseEventTime(c.text(p, "end")); require(start >= 0 && end > start) { throw Problem("err_date") }
         require(c.text(p, "title").isNotBlank()) { throw Problem("err_calendar") }

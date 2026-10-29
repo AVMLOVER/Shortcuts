@@ -12,7 +12,7 @@ import com.germanium.shortcuts.core.Value
 
 internal fun widgetInteractionSupported(request: Interaction) = request is Interaction.Input || request is Interaction.Menu || request is Interaction.Checklist || request is Interaction.ResultDialog || request is Interaction.QuickLook
 
-@Composable internal fun WidgetOverlayContent(app: ShortcutsApplication, request: Interaction?, output: String, close: () -> Unit) {
+@Composable internal fun WidgetOverlayContent(app: ShortcutsApplication, request: Interaction?, output: Value, close: () -> Unit) {
     Surface(Modifier.fillMaxWidth().padding(12.dp).testTag("widget_overlay"),shape=MaterialTheme.shapes.extraLarge,color=MaterialTheme.colorScheme.surfaceContainerHigh,shadowElevation=12.dp) {
         Column(Modifier.padding(20.dp).heightIn(max=560.dp).imePadding(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             val title = when(request) { is Interaction.Input -> request.title; is Interaction.Menu -> request.title; is Interaction.Checklist -> request.title; is Interaction.ResultDialog -> request.title; else -> t("app_name") }
@@ -44,11 +44,11 @@ internal fun widgetInteractionSupported(request: Interaction) = request is Inter
                     Row { TextButton(onClick={app.interactions.reply(request,null)}) { Text(t("cancel")) }; Button(onClick={app.interactions.reply(request,request.items.map { it.first }.filter { it in selected }.joinToString(","))}) {Text(t("done"))} }
                 }
                 is Interaction.ResultDialog -> {
-                    Text(request.body,Modifier.weight(1f,false).verticalScroll(rememberScrollState()))
+                    QuickLookContent(app,request.content,Modifier.weight(1f,false))
                     Row { if(request.allowCancel) TextButton(onClick={app.interactions.reply(request,null)}) {Text(t("cancel"))}; Button(onClick={app.interactions.reply(request,"ok")},modifier=Modifier.testTag("widget_overlay_confirm")) { Text(t("done")) } }
                 }
                 else -> {
-                    QuickLookContent(app, (request as? Interaction.QuickLook)?.value ?: Value.Text(output), Modifier.weight(1f,false))
+                    QuickLookContent(app, (request as? Interaction.QuickLook)?.value ?: output, Modifier.weight(1f,false))
                     if(request != null) Button(onClick={app.interactions.reply(request,"ok")}) {Text(t("done"))}
                 }
             }

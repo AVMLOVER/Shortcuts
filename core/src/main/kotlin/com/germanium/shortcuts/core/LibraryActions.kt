@@ -22,7 +22,7 @@ internal fun libraryActions(platform: PlatformActions): List<ActionHandler> = li
     Handler("crop_image") { p, c -> platform.image("crop_image", c.text(p, "source", "{{input}}"), p.mapValues { c.render(it.value) }) },
     Handler("image_info") { p, c -> platform.image("image_info", c.text(p, "source", "{{input}}"), emptyMap()) },
     Handler("show_result") { p, c ->
-        if (!platform.showResult(c.text(p, "title", "Shortcuts"), c.text(p, "body", "{{input}}"), p["allowCancel"] == "true")) throw kotlinx.coroutines.CancellationException("Result cancelled")
+        if (!platform.showResult(c.text(p, "title", "Shortcuts"), c.resolve(p["body"] ?: "{{input}}"), p["allowCancel"] == "true")) throw kotlinx.coroutines.CancellationException("Result cancelled")
         c.value
     },
     Handler("view_html") { p, c -> platform.viewHtml(c.text(p, "html", "{{input}}")); c.value },
@@ -83,7 +83,7 @@ internal fun libraryActions(platform: PlatformActions): List<ActionHandler> = li
     Handler("dictionary_keys") { p, c -> val value = c.resolve(p["source"] ?: "{{input}}") as? Value.Dictionary ?: throw Problem("err_dictionary"); Value.ListValue(value.entries.keys.map { Value.Text(it) }) },
     Handler("calculate_expression", { require(it["expression"].orEmpty().isNotBlank()) { throw Problem("err_math") } }) { p, c -> Value.Number(Calculator(c.angleUnit) { c.reference(it).number() }.evaluate(c.render(p.getValue("expression")))) },
     Handler("open_app", { require(it["packageName"].orEmpty().isNotBlank()) { throw Problem("err_no_handler") } }) { p, c -> platform.openApp(p.getValue("packageName"), p["className"].orEmpty()); c.value },
-    Handler("reminder") { p, c -> platform.postNotification("Shortcuts", c.text(p, "body", "{{input}}")); c.value },
+    Handler("reminder") { p, c -> platform.postNotification("Shortcuts", c.resolve(p["body"] ?: "{{input}}")); c.value },
     Handler("current_date") { p, c ->
         val zone = c.text(p, "zone").let { if (it.isBlank()) ZoneId.systemDefault() else try { ZoneId.of(it) } catch (_: Exception) { throw Problem("err_date") } }
         Value.Text(currentDateTimeText(pattern = c.text(p, "format"), zone = zone))
