@@ -13,7 +13,6 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -104,7 +103,7 @@ class ShortcutTile4 : ShortcutTileService(3)
 
 class TileRunActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); enableEdgeToEdge()
+        super.onCreate(savedInstanceState); enableShortcutsEdgeToEdge()
         val app = application as ShortcutsApplication
         val slot = intent.getIntExtra("slot", -1)
         setContent {
@@ -123,7 +122,7 @@ class TileRunActivity : ComponentActivity() {
                 finally { loading = false }
             }
             ShortcutsTheme(settings.theme) {
-                Scaffold { padding -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Scaffold(contentWindowInsets = shortcutsContentInsets()) { padding -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(shortcut?.name ?: t("app_name"), style = MaterialTheme.typography.headlineMedium)
                     if (loading || run.runningId == shortcut?.id && run.runningId != null) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(t("running")) }
                     (error ?: run.error.takeIf { run.shortcutId == shortcut?.id })?.let { Text(it, color = MaterialTheme.colorScheme.error) }

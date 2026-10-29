@@ -226,7 +226,7 @@
     <string name="ui_err_branches">Die Verzweigungsstruktur ist ungültig.</string>
     <string name="ui_err_condition">Die Bedingung ist ungültig.</string>
     <string name="ui_err_repeat">Wiederholungen müssen eine Ganzzahl von 1 bis 1000 sein.</string>
-    <string name="ui_err_step_limit">Die Ausführung überschritt 5000 Aktionen.</string>
+    <string name="ui_err_step_limit">Die Ausführung hat das gemeinsame Aktionslimit überschritten.</string>
     <string name="ui_err_busy">Ein anderer Kurzbefehl wird ausgeführt.</string>
     <string name="ui_err_find">Suchtext oder Trennzeichen darf nicht leer sein.</string>
     <string name="ui_err_xml">XML-Datei ungültig, zu groß oder Version nicht unterstützt.</string>
@@ -652,7 +652,7 @@
     <string name="ui_page_size">Seitengröße</string>
     <string name="ui_page_margin">Seitenrand (Punkt)</string>
     <string name="ui_err_empty_shortcut">Ein leerer Kurzbefehl wird nicht gespeichert.</string>
-    <string name="ui_err_repeat_limit">Die Abbruchbedingung wurde nach 1000 Wiederholungen nicht erreicht.</string>
+    <string name="ui_err_repeat_limit">Die Abbruchbedingung wurde nach 100000 Wiederholungen nicht erreicht.</string>
     <string name="ui_err_factor">Eine unterstützte Ganzzahl eingeben; Faktorisierung benötigt eine positive 64-Bit-Zahl.</string>
     <string name="ui_err_pdf">PDF konnte nicht erstellt werden. Text oder Bilder und höchstens 100 Seiten verwenden.</string>
     <string name="ui_compression_hint">Die Prozentzahl steuert die Qualität, nicht die genaue Dateigröße. JPEG füllt Transparenz weiß.</string>

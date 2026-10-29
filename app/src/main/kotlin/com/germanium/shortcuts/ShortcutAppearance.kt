@@ -62,7 +62,7 @@ internal object ShortcutStyles {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun ShortcutAppearancePicker(icon: String, color: String, dismiss: () -> Unit, change: (String, String) -> Unit) {
     var custom by rememberSaveable { mutableStateOf(color.startsWith('#')) }
-    ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(horizontal = 24.dp).testTag("shortcut_appearance_picker"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(t("shortcut_appearance"), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)

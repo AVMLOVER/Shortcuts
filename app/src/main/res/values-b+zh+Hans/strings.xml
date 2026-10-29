@@ -226,7 +226,7 @@
     <string name="ui_err_branches">流程的分支结构无效。</string>
     <string name="ui_err_condition">条件无效。</string>
     <string name="ui_err_repeat">重复次数须为 1–1000 的整数。</string>
-    <string name="ui_err_step_limit">本次运行超过 5000 个动作。</string>
+    <string name="ui_err_step_limit">本次运行超过共享动作执行额度。</string>
     <string name="ui_err_busy">已有快捷指令正在运行。</string>
     <string name="ui_err_find">查找内容或分隔符不能为空。</string>
     <string name="ui_err_xml">XML 文件无效、过大或版本不受支持。</string>
@@ -652,7 +652,7 @@
     <string name="ui_page_size">页面大小</string>
     <string name="ui_page_margin">页边距（点）</string>
     <string name="ui_err_empty_shortcut">不会保存没有操作的快捷指令。</string>
-    <string name="ui_err_repeat_limit">重复 1000 次后仍未满足结束条件。</string>
+    <string name="ui_err_repeat_limit">重复 100000 次后仍未满足结束条件。</string>
     <string name="ui_err_factor">请输入支持的整数；分解因数需要 64 位范围内的正整数。</string>
     <string name="ui_err_pdf">无法制作此 PDF。请使用文本或图像，最多 100 页。</string>
     <string name="ui_compression_hint">百分比表示编码质量，并非文件大小比例。JPEG 会将透明区域填成白色。</string>

@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +24,7 @@ fun openEditor(activity: Activity, id: String? = null, template: String? = null)
 }
 class EditorActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); enableEdgeToEdge()
+        super.onCreate(savedInstanceState); enableShortcutsEdgeToEdge()
         if (Build.VERSION.SDK_INT >= 34) { overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.editor_enter, R.anim.home_exit); overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, R.anim.home_enter, R.anim.editor_exit) }
         val id = intent.getStringExtra("shortcutId") ?: savedInstanceState?.getString("shortcutId") ?: UUID.randomUUID().toString().also { intent.putExtra("shortcutId", it) }
         setContent {

@@ -42,6 +42,49 @@ class ConditionalRepeatTest {
         val result = run(repeat)
         assertEquals(RunStatus.FAILED, result.status); assertEquals("err_repeat_limit", (result.failure as Problem).key)
     }
+    @Test fun completesOneHundredThousandIterationsWithMultipleBodySteps() = runTest {
+        var count = 0
+        val engine = ShortcutEngine(ActionRegistry(listOf(
+            Handler("tick") { _, _ -> Value.Number((++count).toBigDecimal()) },
+            Handler("echo") { _, context -> context.value },
+        )))
+        val repeat = loop(right = "100000", body = listOf(ActionStep(type = "tick"), ActionStep(type = "echo")))
+        val result = engine.run(Shortcut(name = "Full limit", steps = listOf(repeat)), ExecutionMode.STANDARD)
+        assertEquals(RunStatus.SUCCEEDED, result.status)
+        assertEquals(100000, count); assertEquals("100000", result.output)
+        assertEquals("100000", result.steps.last().properties["repeatCount"]?.text())
+        assertEquals(200001, result.executedCount)
+        assertTrue(result.historyTruncated); assertTrue(result.steps.size <= 1000)
+    }
+    @Test fun doesNotExecuteIterationOneHundredThousandAndOne() = runTest {
+        var count = 0
+        val engine = ShortcutEngine(ActionRegistry(listOf(Handler("tick") { _, _ -> Value.Number((++count).toBigDecimal()) })))
+        val repeat = loop(right = "100001", body = listOf(ActionStep(type = "tick")))
+        val result = engine.run(Shortcut(name = "Bounded", steps = listOf(repeat)), ExecutionMode.STANDARD)
+        assertEquals(RunStatus.FAILED, result.status)
+        assertEquals("err_repeat_limit", (result.failure as Problem).key); assertEquals(100000, count)
+    }
+    @Test fun leavingConditionalRepeatRestoresTheOrdinaryExecutionBudget() = runTest {
+        val tick = Handler("tick") { _, _ -> Value.Text("x") }
+        val engine = ShortcutEngine(ActionRegistry(listOf(tick)))
+        val conditional = loop(operator = "is_not_empty", body = listOf(ActionStep(type = "tick")))
+        val ordinary = ActionStep(type = "repeat", parameters = mapOf("count" to "1000"), branches = listOf(ActionBranch("body", steps = List(5) { ActionStep(type = "tick") })))
+        val result = engine.run(Shortcut(name = "Restored budget", steps = listOf(conditional, ordinary)), ExecutionMode.STANDARD)
+        assertEquals(RunStatus.FAILED, result.status); assertEquals("err_step_limit", (result.failure as Problem).key)
+    }
+    @Test fun conditionalBodiesCanCallChildrenBeyondTheOrdinaryBudget() = runTest {
+        var count = 0
+        val child = Shortcut(name = "Child", steps = listOf(ActionStep(type = "tick")))
+        val backend = object : PlatformActions by PlatformActions.Unavailable {
+            override suspend fun shortcutsForCall() = listOf(child)
+        }
+        val engine = ShortcutEngine(ActionRegistry(listOf(Handler("tick") { _, _ -> Value.Number((++count).toBigDecimal()) })), backend)
+        val call = ActionStep(type = "run_shortcut", parameters = mapOf("shortcutUuid" to child.uuid))
+        val repeat = loop(right = "6000", body = listOf(call))
+        val result = engine.run(Shortcut(name = "Caller", steps = listOf(repeat)), ExecutionMode.STANDARD)
+        assertEquals(RunStatus.SUCCEEDED, result.status); assertEquals("6000", result.output)
+        assertEquals("6000", result.steps.last().properties["repeatCount"]?.text())
+    }
     @Test fun endConditionReferencesHaveAScopeAndSurviveXml() {
         val body = ActionStep(type = "text", parameters = mapOf("value" to "ok")); val repeat = loop(body = listOf(body))
         val flow = Shortcut(name = "Nested", steps = listOf(repeat))

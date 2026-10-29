@@ -11,7 +11,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,7 +55,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onPause() { runCatching { android.nfc.NfcAdapter.getDefaultAdapter(this)?.disableReaderMode(this) }; super.onPause() }
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); enableEdgeToEdge()
+        super.onCreate(savedInstanceState); enableShortcutsEdgeToEdge()
         if (savedInstanceState == null) receiveTag(intent)
         setContent {
             val model: ShortcutsViewModel = viewModel(); val state by model.state.collectAsStateWithLifecycle()
@@ -101,7 +100,7 @@ class MainActivity : ComponentActivity() {
                 FilledTonalButton(onClick = { addingFolder = true }, modifier = Modifier.fillMaxWidth()) { AppIcon(R.drawable.ic_add); Spacer(Modifier.width(8.dp)); Text(t("new_folder")) }
             }
         }
-    }) { Scaffold(topBar = {
+    }) { Scaffold(contentWindowInsets = shortcutsContentInsets(), topBar = {
         Surface(color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)).padding(horizontal = 16.dp).heightIn(min = 56.dp).testTag("home_top_bar"), verticalAlignment = Alignment.CenterVertically) {
                 if (tab == 0 && searching) ShortcutSearchField(searchText, ::closeSearch, Modifier.weight(1f))

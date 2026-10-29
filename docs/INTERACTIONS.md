@@ -9,6 +9,7 @@
 | [Android Calendar Provider](https://developer.android.com/identity/providers/calendar-provider) | CalendarContract.Instances 读取指定日的事件实例，权限按需申请。 |
 | [Android MediaProjection](https://developer.android.com/media/grow/media-projection) | 每次新授权，短时 mediaProjection 前台服务、一次 VirtualDisplay、ImageReader PNG，结束释放。 |
 | [Android Quick Settings tiles](https://developer.android.com/develop/ui/views/quicksettings-tiles) | 4 个受 BIND_QUICK_SETTINGS_TILE 保护的 TileService，Android 13+ requestAddTileService；运行入口 Activity 不对外导出。不同厂商控制中心的展示由系统决定。 |
+| [Android WindowInsets](https://developer.android.com/develop/ui/compose/system/insets)、[透明系统栏](https://developer.android.com/develop/ui/compose/system/system-bars) | 使用透明导航栏，手势底部不预留小白条高度；tappableElement 保护三键导航点击区域，顶部与横向保留 safeDrawing，键盘仍使用 imePadding 避让。 |
 
 M3EColorPicker 是本项目中使用 Material 3 Expressive Slider 实现的连续 HSV 颜色组件，没有引入未确认来源的同名第三方依赖。RGB 写入 XML，浅色背景上的图案自动使用深色。
 

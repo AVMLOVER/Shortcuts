@@ -8,7 +8,7 @@
 
 “完成”不会保存没有操作的快捷指令；新建空流程直接关闭，已有条目删除全部操作后完成则移除该条目及对应的完成结果、控制中心绑定。空 XML 导入项会跳过，全空导入报错。放弃修改仍按原有语义保留原流程。
 
-`repeat_until` 只有一个 `body` 分支，至少运行一次；停止条件放在“结束重复”处。使用 `left`（输出/变量）、`operator`、`right`（比较值/变量），完全复用如果的全部算子及类型规则，包括 greater/less/greater_equal/less_equal、equals/not_equals、contains/not_contains、is_empty/is_not_empty/is_true、matches。结束条件可选择本轮已完成操作的输出。匹配时主输出保持最后一轮结果；`{{@操作ID.repeatCount}}` 独立输出数字类型的重复次数，在魔法变量中可选择。嵌套循环恢复外层 repeat_index。最多 1000 次，同时受流程 5000 步总上限约束。
+`repeat_until` 只有一个 `body` 分支，至少运行一次；停止条件放在“结束重复”处。使用 `left`（输出/变量）、`operator`、`right`（比较值/变量），完全复用如果的全部算子及类型规则，包括 greater/less/greater_equal/less_equal、equals/not_equals、contains/not_contains、is_empty/is_not_empty/is_true、matches。结束条件可选择本轮已完成操作的输出。匹配时主输出保持最后一轮结果；`{{@操作ID.repeatCount}}` 独立输出数字类型的重复次数，在魔法变量中可选择。嵌套循环恢复外层 repeat_index。当前实现最多 100000 次；条件性重复内部及其子调用另共享最多 1 亿步预算，普通执行仍共享 5000 步。
 
 ## 因数与新增图像/PDF
 

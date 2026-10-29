@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 @Composable internal fun FloatingNavigation(selectedTab: Int, select: (Int) -> Unit) {
     val transition = updateTransition(selectedTab, label = "navigation")
     val position = transition.animateFloat({ tween(180, easing = FastOutSlowInEasing) }, label = "indicator") { it * 0.26f }
-    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().windowInsetsPadding(shortcutsBottomInsets()).padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(34.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 6.dp, shadowElevation = 8.dp,
             modifier = Modifier.widthIn(max = 360.dp).fillMaxWidth(0.9f).testTag("floating_navigation")) {
             BoxWithConstraints(Modifier.padding(6.dp).height(52.dp)) {

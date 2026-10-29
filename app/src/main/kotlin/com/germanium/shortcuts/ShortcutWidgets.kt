@@ -87,7 +87,7 @@ class WidgetEight : ShortcutWidgetProvider()
 
 class WidgetConfigureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); setResult(RESULT_CANCELED)
+        super.onCreate(savedInstanceState); enableShortcutsEdgeToEdge(); setResult(RESULT_CANCELED)
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val manager = AppWidgetManager.getInstance(this)
         val info = manager.getAppWidgetInfo(id)
@@ -100,7 +100,7 @@ class WidgetConfigureActivity : ComponentActivity() {
             var theme by remember { mutableStateOf(ThemeMode.SYSTEM) }
             val scope = rememberCoroutineScope()
             LaunchedEffect(Unit) { items = app.shortcuts.list(); theme = app.settings.load().theme }
-            ShortcutsTheme(theme) { Scaffold { padding -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            ShortcutsTheme(theme) { Scaffold(contentWindowInsets = shortcutsContentInsets()) { padding -> Column(Modifier.fillMaxSize().padding(padding).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(t("widget_select"), style = MaterialTheme.typography.headlineMedium)
                 Text("${selected.size}/$capacity", style = MaterialTheme.typography.titleMedium)
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items, key = { it.id }) { shortcut ->

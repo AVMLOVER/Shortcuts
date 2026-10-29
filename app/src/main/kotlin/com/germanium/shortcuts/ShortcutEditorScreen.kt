@@ -199,7 +199,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     BackHandler { leave() }
     val draggingActions = drag.source != null || libraryDragging
     Box(Modifier.fillMaxSize()) {
-    Scaffold(modifier = Modifier.fillMaxSize().testTag("shortcut_editor_fullscreen"), topBar = {
+    Scaffold(contentWindowInsets = shortcutsContentInsets(), modifier = Modifier.fillMaxSize().testTag("shortcut_editor_fullscreen"), topBar = {
         TopAppBar(title = {
             if (draggingActions) DragDeleteTarget(drag.overDelete(if (libraryDragging) libraryPointer else drag.pointer), Modifier.onGloballyPositioned { drag.deleteBounds = Rect(it.positionInRoot(), it.size.toSize()) })
             else Text(t(if (choosingOutput) "select_output" else "edit_shortcut"), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
@@ -214,7 +214,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             }
         })
     }, bottomBar = {
-        Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Column(Modifier.windowInsetsPadding(shortcutsBottomInsets()).imePadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 6.dp, shadowElevation = 6.dp) { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val inspected = variables.inspected
             if (inspected != null && !choosingOutput) {
@@ -492,7 +492,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     val localized = ActionCatalog.all.map { Triple(it, t(it.title), t("group_${it.group}")) }
     val dragScope = rememberCoroutineScope()
     BackHandler(onBack = onDismiss)
-    Surface(modifier.fillMaxWidth().fillMaxHeight(0.74f).imePadding().navigationBarsPadding().testTag("action_library_panel"), shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 6.dp, shadowElevation = 16.dp) {
+    Surface(modifier.fillMaxWidth().fillMaxHeight(0.74f).imePadding().windowInsetsPadding(shortcutsBottomInsets()).testTag("action_library_panel"), shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 6.dp, shadowElevation = 16.dp) {
         val localView = androidx.compose.ui.platform.LocalView.current
         Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(t("add_action"), Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium); IconButton(onClick = onDismiss) { AppIcon(R.drawable.ic_close, description = t("close")) } }
@@ -534,7 +534,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
     var search by rememberSaveable { mutableStateOf("") }
     var showSystem by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(allPackages) { try { apps = AppsRepository.load(context, allPackages) } catch (e: Exception) { if (e is CancellationException) throw e; onError(e); onDismiss() } }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxHeight(0.85f).padding(horizontal = 24.dp)) {
             Text(t("choose_app"), style = MaterialTheme.typography.headlineMedium)
             OutlinedTextField(search, { search = it }, label = { Text(t("search_apps")) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))

@@ -17,7 +17,7 @@ import com.germanium.shortcuts.core.Shortcut
     OutlinedButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth().testTag("choose_called_shortcut")) {
         Text(current?.name ?: t(if (selected.isBlank()) "choose_shortcut" else "err_shortcut_missing"))
     }
-    if (expanded) ModalBottomSheet(onDismissRequest = { expanded = false }) {
+    if (expanded) ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = { expanded = false }) {
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 600.dp), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { Text(t("choose_shortcut"), style = MaterialTheme.typography.titleLarge) }
             items(shortcuts, key = { it.uuid }) { shortcut ->

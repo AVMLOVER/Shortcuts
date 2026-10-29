@@ -79,7 +79,7 @@ import kotlinx.coroutines.*
     var chooseWifi by remember { mutableStateOf(false) }
     val nfcAvailable = remember { android.nfc.NfcAdapter.getDefaultAdapter(app) != null }
     val scanner = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result -> if (result.resultCode == android.app.Activity.RESULT_OK) tagId = result.data?.getStringExtra("tagId").orEmpty() }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(t("new_automation"), style = MaterialTheme.typography.headlineMedium)
             OutlinedTextField(name, { if (it.length <= 200) name = it }, label = { Text(t("name")) }, singleLine = true, modifier = Modifier.fillMaxWidth())

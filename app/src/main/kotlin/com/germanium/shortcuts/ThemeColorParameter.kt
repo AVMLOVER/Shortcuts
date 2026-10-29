@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
         OutlinedButton(onClick = { open = true }, enabled = enabled) { Text(t("custom_color")) }
         TextButton(onClick = { change("") }, enabled = enabled && value.isNotEmpty()) { Text(t("theme_color")) }
     }
-    if (open) ModalBottomSheet(onDismissRequest = { open = false }) {
+    if (open) ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = { open = false }) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) {
             M3EColorPicker(value.takeIf { it.startsWith('#') } ?: "#%06X".format(java.util.Locale.ROOT, fallback.toArgb() and 0xFFFFFF), change)
             TextButton(onClick = { open = false }) { Text(t("done")) }

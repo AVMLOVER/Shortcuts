@@ -17,8 +17,8 @@ internal fun Tag.hexId() = id.joinToString("") { "%02X".format(java.util.Locale.
 class NfcScanActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private val adapter by lazy { NfcAdapter.getDefaultAdapter(this) }
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); setResult(Activity.RESULT_CANCELED)
-        setContent { ShortcutsTheme(ThemeMode.SYSTEM) { Surface(Modifier.fillMaxSize()) { Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        super.onCreate(savedInstanceState); enableShortcutsEdgeToEdge(); setResult(Activity.RESULT_CANCELED)
+        setContent { ShortcutsTheme(ThemeMode.SYSTEM) { Surface(Modifier.fillMaxSize()) { Column(Modifier.windowInsetsPadding(shortcutsContentInsets()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Text(t("scan_nfc"), style = MaterialTheme.typography.headlineMedium)
             Text(t(if (adapter == null) "nfc_unavailable" else if (adapter?.isEnabled == true) "nfc_scan_hint" else "nfc_enable_hint"))
             if (adapter != null && adapter?.isEnabled == false) Button(onClick = { startActivity(Intent(android.provider.Settings.ACTION_NFC_SETTINGS)) }) { Text(t("settings")) }

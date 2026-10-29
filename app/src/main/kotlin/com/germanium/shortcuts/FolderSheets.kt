@@ -17,7 +17,7 @@ import com.germanium.shortcuts.core.*
     var icon by rememberSaveable { mutableStateOf(original?.icon ?: "folder") }
     var color by rememberSaveable { mutableStateOf(original?.color ?: "purple") }
     var styling by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = dismiss) {
+    ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = dismiss) {
         Column(Modifier.fillMaxWidth().imePadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(t("new_folder"), style = MaterialTheme.typography.headlineSmall)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -33,7 +33,7 @@ import com.germanium.shortcuts.core.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun MoveToFolderSheet(shortcut: Shortcut, folders: List<ShortcutFolder>, dismiss: () -> Unit, move: (String) -> Unit) {
-    ModalBottomSheet(onDismissRequest = dismiss) {
+    ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = dismiss) {
         Column(Modifier.fillMaxWidth().heightIn(max = 450.dp).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(t("move_to_folder"), style = MaterialTheme.typography.headlineSmall)
             Text(shortcut.name)

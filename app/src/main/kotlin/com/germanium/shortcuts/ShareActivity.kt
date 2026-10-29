@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,7 +50,7 @@ class ShareReceiverModel(application: android.app.Application) : AndroidViewMode
 
 class ShareActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); enableEdgeToEdge()
+        super.onCreate(savedInstanceState); enableShortcutsEdgeToEdge()
         val app = application as ShortcutsApplication
         setContent {
             val model: ShareReceiverModel = viewModel()
@@ -69,7 +68,7 @@ class ShareActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun ShareSheet(app: ShortcutsApplication, payload: Value?, shortcuts: List<Shortcut>, run: RunState, selected: String?, error: String?, dismiss: () -> Unit, start: (Shortcut) -> Unit) {
-    ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    ModalBottomSheet(contentWindowInsets = { shortcutsContentInsets() }, onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 640.dp), contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { Text(t("run_shared_content"), style = MaterialTheme.typography.headlineSmall) }
             item { Text(t("share_input_hint"), color = MaterialTheme.colorScheme.onSurfaceVariant) }

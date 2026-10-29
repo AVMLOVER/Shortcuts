@@ -42,8 +42,14 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
     fun validate(shortcut: Shortcut) { compile(shortcut.steps) }
     private sealed interface Frame
     private class Block(val nodes: List<Node>, var index: Int = 0, val complete: (() -> Unit)? = null) : Frame
-    private class Loop(val node: Node, val count: Int, val items: List<Value>?, val previousIndex: Value?, val previousItem: Value?, val previousIndexOrigins: Set<InputOrigin>, val previousItemOrigins: Set<InputOrigin>, var index: Int = 0, val results: MutableList<Value> = mutableListOf(), var resultLength: Long = 0) : Frame
-    private class Budget(var executed: Int = 0)
+    private class Loop(val node: Node, val count: Int, val items: List<Value>?, val previousIndex: Value?, val previousItem: Value?, val previousIndexOrigins: Set<InputOrigin>, val previousItemOrigins: Set<InputOrigin>, var index: Int = 0, val results: MutableList<Value> = mutableListOf(), var resultLength: Long = 0, var conditionalBudgetActive: Boolean = false) : Frame
+    private class Budget(var ordinarySteps: Int = 0, var conditionalSteps: Int = 0, var conditionalDepth: Int = 0) {
+        // Repeated bodies (including child calls) share a separate bounded allowance.
+        // Leaving a conditional loop restores the ordinary call-chain budget.
+        fun step() {
+            require(if (conditionalDepth > 0) ++conditionalSteps <= MAX_CONDITIONAL_STEPS else ++ordinarySteps <= 5000) { throw Problem("err_step_limit") }
+        }
+    }
     suspend fun run(shortcut: Shortcut, mode: ExecutionMode, input: String = "", onStep: (String) -> Unit = {}, onTrace: ((RunTrace) -> Unit)? = null, angleUnit: AngleUnit = AngleUnit.DEGREES, typedInput: Value? = null, inputOrigin: InputOrigin = InputOrigin.NONE): RunResult {
         check(mutex.tryLock()) { "err_busy" }
         try { return execute(shortcut, mode, typedInput ?: Value.Text(input), inputOrigin, onStep, onTrace, angleUnit, Budget(), emptySet()) }
@@ -70,6 +76,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
             trace("step_end", step)
         }
         fun restore(loop: Loop) {
+            if (loop.conditionalBudgetActive) { loop.conditionalBudgetActive = false; budget.conditionalDepth-- }
             if (loop.previousIndex == null) variables.remove("repeat_index") else variables.set("repeat_index", loop.previousIndex, loop.previousIndexOrigins)
             if (loop.items != null) { if (loop.previousItem == null) variables.remove("repeat_item") else variables.set("repeat_item", loop.previousItem, loop.previousItemOrigins) }
         }
@@ -83,7 +90,7 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                     is Block -> {
                         if (frame.index >= frame.nodes.size) { stack.removeLast(); frame.complete?.invoke(); continue }
                         val node = frame.nodes[frame.index++]; val step = node.step
-                        executed++; require(++budget.executed <= 5000) { throw Problem("err_step_limit") }
+                        executed++; budget.step()
                         currentStep = step.id; onStep(step.id); trace("step_start", step)
                         val context = RunContext(mode, value, variables, angleUnit, originalInput, source, origins)
                         when (step.type) {
@@ -100,9 +107,13 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
                             }
                             "repeat", "repeat_each", "repeat_until" -> {
                                 val items = if (step.type == "repeat_each") asList(context.resolve(step.parameters["source"] ?: "{{input}}")) else null
-                                val count = if (step.type == "repeat_until") 1000 else items?.size ?: (context.text(step.parameters, "count", "2").toIntOrNull() ?: throw Problem("err_repeat"))
-                                require(count in (if (items == null) 1 else 0)..1000) { throw Problem("err_repeat") }
-                                stack.addLast(Loop(node, count, items, variables.snapshot()["repeat_index"], variables.snapshot()["repeat_item"], variables.origins("repeat_index"), variables.origins("repeat_item")))
+                                val conditional = step.type == "repeat_until"
+                                val limit = if (conditional) MAX_CONDITIONAL_REPEATS else 1000
+                                val count = if (conditional) limit else items?.size ?: (context.text(step.parameters, "count", "2").toIntOrNull() ?: throw Problem("err_repeat"))
+                                require(count in (if (items == null) 1 else 0)..limit) { throw Problem("err_repeat") }
+                                stack.addLast(Loop(node, count, items, variables.snapshot()["repeat_index"], variables.snapshot()["repeat_item"], variables.origins("repeat_index"), variables.origins("repeat_item")).also {
+                                    if (conditional) { budget.conditionalDepth++; it.conditionalBudgetActive = true }
+                                })
                             }
                             "run_shortcut" -> {
                                 val choices = platform.shortcutsForCall()
@@ -153,7 +164,12 @@ class ShortcutEngine(private val registry: ActionRegistry = builtInActions(), pr
         } catch (e: Exception) { unwind(); trace("run_failed", failure = e); return RunResult(RunStatus.FAILED, results, e.message ?: e.javaClass.simpleName, variables.snapshot(), currentStep, e, executed, historyTruncated)
         }
     }
-    companion object { val SOURCE_CONDITIONS = setOf("source_system_share", "source_shortcut"); val CONDITIONS = setOf("equals", "not_equals", "contains", "not_contains", "greater", "less", "greater_equal", "less_equal", "is_empty", "is_not_empty", "is_true", "matches") }
+    companion object {
+        const val MAX_CONDITIONAL_REPEATS = 100_000
+        private const val MAX_CONDITIONAL_STEPS = MAX_CONDITIONAL_REPEATS * 1000
+        val SOURCE_CONDITIONS = setOf("source_system_share", "source_shortcut")
+        val CONDITIONS = setOf("equals", "not_equals", "contains", "not_contains", "greater", "less", "greater_equal", "less_equal", "is_empty", "is_not_empty", "is_true", "matches")
+    }
 }
 
 internal class Handler(

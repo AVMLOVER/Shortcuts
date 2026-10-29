@@ -226,7 +226,7 @@
     <string name="ui_err_branches">The workflow branch structure is invalid.</string>
     <string name="ui_err_condition">The condition is invalid.</string>
     <string name="ui_err_repeat">Repeat count must be an integer from 1 to 1000.</string>
-    <string name="ui_err_step_limit">Execution exceeded 5000 actions.</string>
+    <string name="ui_err_step_limit">Execution exceeded the shared action budget.</string>
     <string name="ui_err_busy">Another shortcut is running.</string>
     <string name="ui_err_find">The search text or separator must not be empty.</string>
     <string name="ui_err_xml">The XML file is invalid, too large or uses an unsupported version.</string>
@@ -652,7 +652,7 @@
     <string name="ui_page_size">Page size</string>
     <string name="ui_page_margin">Page margin (points)</string>
     <string name="ui_err_empty_shortcut">An empty shortcut will not be saved.</string>
-    <string name="ui_err_repeat_limit">The stop condition was not reached within 1000 repetitions.</string>
+    <string name="ui_err_repeat_limit">The stop condition was not reached within 100000 repetitions.</string>
     <string name="ui_err_factor">Enter a supported integer; factorization needs a positive value within the 64-bit range.</string>
     <string name="ui_err_pdf">Unable to make this PDF. Use text or images and no more than 100 pages.</string>
     <string name="ui_compression_hint">Quality controls encoding, not an exact percentage of file size. JPEG fills transparency with white.</string>

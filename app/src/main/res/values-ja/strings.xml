@@ -226,7 +226,7 @@
     <string name="ui_err_branches">ワークフローの分岐構造が無効です。</string>
     <string name="ui_err_condition">条件が無効です。</string>
     <string name="ui_err_repeat">繰り返し回数は 1～1000 の整数にしてください。</string>
-    <string name="ui_err_step_limit">実行したアクションが 5000 個を超えました。</string>
+    <string name="ui_err_step_limit">共有のアクション実行上限を超えました。</string>
     <string name="ui_err_busy">別のショートカットが実行中です。</string>
     <string name="ui_err_find">検索文字列または区切り文字は必須です。</string>
     <string name="ui_err_xml">XML が無効、大きすぎる、または未対応のバージョンです。</string>
@@ -652,7 +652,7 @@
     <string name="ui_page_size">用紙サイズ</string>
     <string name="ui_page_margin">余白（ポイント）</string>
     <string name="ui_err_empty_shortcut">アクションのないショートカットは保存しません。</string>
-    <string name="ui_err_repeat_limit">1000回繰り返しても終了条件を満たしませんでした。</string>
+    <string name="ui_err_repeat_limit">100000回繰り返しても終了条件を満たしませんでした。</string>
     <string name="ui_err_factor">対応する整数を入力してください。因数分解には64ビット範囲の正の整数が必要です。</string>
     <string name="ui_err_pdf">PDFを作成できません。テキストまたはイメージを使用してください。上限は100ページです。</string>
     <string name="ui_compression_hint">割合は圧縮品質で、ファイルサイズの比率ではありません。JPEGの透明部分は白になります。</string>
