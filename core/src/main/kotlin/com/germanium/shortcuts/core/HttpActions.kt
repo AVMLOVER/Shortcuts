@@ -79,6 +79,7 @@ object HttpActions {
         return when (value) {
             Value.Null -> "null"
             is Value.Text -> quote(value.value)
+            is Value.RichText -> quote(value.plain)
             is Value.Number, is Value.BooleanValue -> value.text()
             is Value.ListValue -> value.items.joinToString(",", "[", "]", transform = ::json)
             is Value.Dictionary -> value.entries.entries.joinToString(",", "{", "}") { quote(it.key) + ":" + json(it.value) }

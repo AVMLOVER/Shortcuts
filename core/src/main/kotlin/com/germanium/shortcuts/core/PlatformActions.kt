@@ -8,6 +8,8 @@ data class IntentSpec(
     val extras: List<IntentExtra> = emptyList(),
 )
 interface PlatformActions {
+    suspend fun media105(operation: String, source: Value, secondary: Value, options: Map<String, String>): Value = throw Problem("err_backend")
+    suspend fun renameFile(source: String, newName: String, mode: ExecutionMode): Value = throw Problem("err_backend")
     suspend fun openUrl(url: String) = launchIntent(IntentSpec(data = url, categories = listOf("android.intent.category.BROWSABLE")))
     suspend fun power(reboot: Boolean, mode: ExecutionMode, target: String = "system"): Unit = throw Problem("err_root_required")
     suspend fun archive(source: Value, folder: String, filename: String, extract: Boolean): Value = throw Problem("err_backend")

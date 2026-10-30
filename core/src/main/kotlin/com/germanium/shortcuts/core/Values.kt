@@ -6,29 +6,40 @@ sealed interface Value {
     fun text(): String
     data object Null : Value { override fun text() = "" }
     data class Text(val value: String) : Value { override fun text() = value }
+    data class RichText(val html: String, val plain: String) : Value {
+        init { require(html.length + plain.length <= 262144) { throw Problem("err_size") } }
+        override fun text() = plain
+    }
     data class Number(val value: BigDecimal) : Value {
         init { require(value.precision() <= 1024 && value.scale() in -1024..1024) { throw Problem("err_number") } }
         override fun text(): String = value.stripTrailingZeros().toPlainString()
     }
     data class BooleanValue(val value: Boolean) : Value { override fun text() = value.toString() }
     data class ListValue(val items: List<Value>) : Value {
-        init { require(items.size <= 256 && containerDepth(items) <= 16 && items.sumOf { it.text().length.toLong() + 1 } <= 262144) { throw Problem("err_size") } }
+        init { require(items.size <= 256 && containerDepth(items) <= 16 && items.sumOf { it.storageLength().toLong() + 1 } <= 262144) { throw Problem("err_size") } }
         override fun text() = items.joinToString("\n") { it.text() }
     }
     data class Dictionary(val entries: Map<String, Value>) : Value {
         init {
             require(entries.size <= 256) { throw Problem("err_size") }; require(containerDepth(entries.values) <= 16) { throw Problem("err_size") }
             var length = 2L
-            entries.forEach { (key, value) -> length += key.length + value.text().length + 4; require(length <= 262144) { throw Problem("err_size") } }
+            entries.forEach { (key, value) -> length += key.length + value.storageLength() + 4; require(length <= 262144) { throw Problem("err_size") } }
         }
         override fun text(): String = entries.entries.joinToString(prefix = "{", postfix = "}") { "${it.key}: ${it.value.text()}" }
     }
+}
+fun Value.storageLength(): Int = when(this) {
+    is Value.RichText -> html.length+plain.length
+    is Value.ListValue -> items.sumOf { it.storageLength()+1 }
+    is Value.Dictionary -> entries.entries.sumOf { it.key.length+it.value.storageLength()+4 }+2
+    else -> text().length
 }
 private fun containerDepth(values: Collection<Value>): Int = 1 + (values.maxOfOrNull { when (it) { is Value.Dictionary -> containerDepth(it.entries.values); is Value.ListValue -> containerDepth(it.items); else -> 0 } } ?: 0)
 fun Value.number(): BigDecimal = when (this) {
     Value.Null -> throw Problem("err_number")
     is Value.Number -> value
     is Value.Text -> parseNumber(value)
+    is Value.RichText -> parseNumber(plain)
     is Value.BooleanValue -> throw Problem("err_number")
     is Value.Dictionary -> throw Problem("err_dictionary")
     is Value.ListValue -> throw Problem("err_number_list")
@@ -55,7 +66,7 @@ class VariableScope {
     fun outputProperty(id: String, key: String): Value? = outputs["$id.$key"]
     fun record(id: String, value: Value, origins: Set<InputOrigin> = emptySet()) {
         outputOrigins[id] = origins
-        val length = value.text().length
+        val length = value.storageLength()
         require(outputLength - (outputLengths[id] ?: 0) + length <= 8388608) { throw Problem("err_size") }
         outputLength += length - (outputLengths[id] ?: 0); outputLengths[id] = length; outputs[id] = value
     }
@@ -69,7 +80,7 @@ class VariableScope {
     fun set(name: String, value: Value, origins: Set<InputOrigin> = emptySet()) {
         validateVariableName(name)
         require(values.containsKey(name) || values.size < 256) { throw Problem("err_size") }
-        val length = value.text().length
+        val length = value.storageLength()
         require(length <= 262144 && totalLength - (lengths[name] ?: 0) + length <= 4194304) { throw Problem("err_size") }
         totalLength += length - (lengths[name] ?: 0)
         lengths[name] = length

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<shortcut version="1" id="dictionary-calculation" createdAt="1793100000000" updatedAt="1793100000000">
+<shortcut version="1" id="dictionary-calculation" createdAt="1793100000000" updatedAt="1793100000000" uuid="cab6bf6c-8905-3d59-8e79-e341c979d484" appVersion="10005">
   <name>从字典计算总价</name>
   <steps>
     <action id="dict" type="dictionary" enabled="true">

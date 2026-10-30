@@ -13,7 +13,7 @@ Shortcuts 是使用 Jetpack Compose 和 Material 3 Expressive 构建的 Android 
 | 理解上一步结果、魔法变量和命名变量 | [变量与数据类型](Variables.md) |
 | 使用如果、菜单、循环和停止 | [流程控制](Control-Flow.md) |
 | 把流程拆成可复用的子流程 | [快捷指令调用与返回](Shortcut-Calls.md) |
-| 查找全部 129 个操作 | [操作参考](Actions.md) |
+| 查找全部 142 个操作 | [操作参考](Actions.md) |
 | 直接照着搭建流程 | [示例工作流](Examples.md) |
 
 ## 按功能阅读

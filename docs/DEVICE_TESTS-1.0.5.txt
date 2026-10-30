@@ -1,0 +1,19 @@
+Shortcuts 1.0.5 device verification — 2026-10-30 (Asia/Shanghai)
+
+11 functional/preview checks + 1 backup check + 1 preservation check passed.
+Same-signed Release upgrade; 17 original files and existing entries from 2 preference files preserved.
+No main-app uninstall or data clear. No power or partition operations.
+Screen setting restored and temporary test package removed.
+
+Passed cases:
+- createdRichTextFilesPreviewTheirContentInsteadOfXmlSource
+- filteringUsesNumericDimensions
+- richTextDrawsFormattingAndSharesHtml
+- bundledLatinOcrReadsGeneratedText
+- pdfSelectedPageRendersTheRequestedContent
+- gifCreationAppendAndFrameExtractionPreserveFrameOrder
+- bundledChineseAndJapaneseOcrReadTheirScripts
+- gifVideoIsAReadableMp4WithTimingAndDimensions
+- renamingAWorkspaceFileReturnsItsNewReadableReference
+- storedRichTextRendersInQuickLookAndShowResult
+- gifAnimatesInQuickLookAndAlsoAppearsInShowResult

@@ -13,6 +13,27 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 
 class AndroidActions(context: Context, private val interactions: Interactions, private val foregroundActivity: () -> Activity?) : PlatformActions {
+    override suspend fun media105(operation:String,source:Value,secondary:Value,options:Map<String,String>) = AndroidMedia105(this.context as ShortcutsApplication).perform(operation,source,secondary,options)
+    override suspend fun renameFile(source:String,newName:String,mode:ExecutionMode):Value = withContext(Dispatchers.IO) {
+        FileNames.validate(newName)
+        if(source.startsWith("content://")) {
+            val uri=Uri.parse(source)
+            require(android.provider.DocumentsContract.isDocumentUri(context,uri)) { throw Problem("err_rename_permission") }
+            val renamed=try{android.provider.DocumentsContract.renameDocument(context.contentResolver,uri,newName) ?: throw Problem("err_io")}
+                catch(e:SecurityException){throw Problem("err_rename_permission")}
+                catch(e:UnsupportedOperationException){throw Problem("err_rename_permission")}
+            runCatching{context.contentResolver.takePersistableUriPermission(renamed,Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)}
+            Value.Text(renamed.toString())
+        } else if(source.startsWith('/')) {
+            require(mode==ExecutionMode.ROOT) { throw Problem("err_root_required") }
+            val original=java.io.File(source)
+            require(source.length<=500&&source.none{it.code<32}&&source.split('/').none{it==".."||it=="."}) { throw Problem("err_path") }
+            val destination=java.io.File(original.parentFile ?: throw Problem("err_path"),newName).path
+            if(!showResult(context.tr("action_rename_file"),source+"\n→ "+destination,true))throw kotlinx.coroutines.CancellationException("Rename cancelled")
+            val result=rawShell("test -f ${ShellPolicy.quote(source)} && test ! -e ${ShellPolicy.quote(destination)} && mv -n -- ${ShellPolicy.quote(source)} ${ShellPolicy.quote(destination)} && test ! -e ${ShellPolicy.quote(source)}",ExecutionMode.ROOT,10000)
+            require(result.exitCode==0) { throw Problem("err_io") }; Value.Text(destination)
+        } else (context as ShortcutsApplication).workspace.rename(source,newName)
+    }
     private val context = context.applicationContext
     private val shizuku = ShizukuShellBackend(this.context)
     private val system = AndroidSystemActions(this.context, interactions, foregroundActivity, shizuku)

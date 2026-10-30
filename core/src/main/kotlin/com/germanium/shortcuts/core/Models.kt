@@ -65,7 +65,7 @@ object DemoShortcut {
     )
 }
 
-const val SHORTCUTS_VERSION = 10004
+const val SHORTCUTS_VERSION = 10005
 const val MAX_WORKFLOW_ACTIONS = 10_000
 const val MAX_RUN_STEPS = 50_000
 fun stableShortcutUuid(id: String): String = if (id.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))) id else UUID.nameUUIDFromBytes(("com.germanium.shortcuts:" + id).toByteArray(Charsets.UTF_8)).toString()

@@ -25,7 +25,7 @@ object ActionCatalog {
     private val dictionary = ActionField("dictionary", "dictionary_source", "{{input}}")
     private val key = ActionField("key", "key", "name")
     private val valueType = ActionField("valueType", "value_type", "auto", choices = valueTypes)
-    private val definitions = Version104Catalog.all + ContentActionCatalog.all + listOf(
+    private val definitions = Version105Catalog.all + Version104Catalog.all + ContentActionCatalog.all + listOf(
         ActionDefinition("text", "basic", "T", listOf(ActionField("value", "text_type", multiline = true))),
         ActionDefinition("number", "math", "123", listOf(ActionField("value", "number_type", "0"))),
         ActionDefinition("current_location", "device", "◎", emptyList()),

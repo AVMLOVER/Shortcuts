@@ -79,6 +79,7 @@ internal class AndroidContent(private val app: ShortcutsApplication) {
         }.getOrDefault(false) }.map { Value.Text(it) })
     }
     suspend fun shareIntent(value: Value): Intent = withContext(Dispatchers.IO) {
+        if(value is Value.RichText) return@withContext Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/html").putExtra(Intent.EXTRA_TEXT,value.plain).putExtra(Intent.EXTRA_HTML_TEXT,value.html),app.tr("action_share"))
         val refs = references(value)
         if (refs.isEmpty()) return@withContext Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, if (ContentInput.isPayload(value)) ContentInput.extract("text", value).text() else value.text()), app.tr("action_share"))
         require(refs.size <= 16) { throw Problem("err_size") }

@@ -80,7 +80,8 @@ fun modeKey(mode: ExecutionMode) = when (mode) { ExecutionMode.STANDARD -> "stan
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val active = app.interactions.current.value?.takeIf { it.id == fileId } as? Interaction.PickFile
         if (active != null) {
-            if (uri != null) runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }.onFailure { app.diagnostics.trace("file_permission_not_persistent", it) }
+            if (uri != null) runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+                .recoverCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }.onFailure { app.diagnostics.trace("file_permission_not_persistent", it) }
             app.interactions.reply(active, uri?.toString())
         }
     }

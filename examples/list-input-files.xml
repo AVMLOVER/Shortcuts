@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<shortcut version="1" id="list-input-files" createdAt="1793145600000" updatedAt="1793145600000">
+<shortcut version="1" id="list-input-files" createdAt="1793145600000" updatedAt="1793145600000" uuid="0a160bdb-88db-35c7-84cb-b357b684c533" appVersion="10005">
   <name>List, input and files</name>
   <steps>
     <action id="items" type="list" enabled="true">

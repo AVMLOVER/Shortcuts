@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shortcut version="1" id="share-number-statistics" createdAt="1793145600000" updatedAt="1793145600000">
+<shortcut version="1" id="share-number-statistics" createdAt="1793145600000" updatedAt="1793145600000" uuid="735c7808-d64b-321a-ab3c-affa8180a131" appVersion="10005">
   <name>Shared numbers: average</name>
   <steps>
     <action id="shared" type="share_input" enabled="true"><parameter key="contentType">any</parameter></action>

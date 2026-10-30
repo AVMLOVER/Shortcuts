@@ -388,6 +388,13 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (step.type == "share_input") Text(t("share_input_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type in listOf("mask_image", "overlay_image", "flip_image", "combine_images", "resize_image", "compress_image", "text_image", "rotate_image", "convert_image")) Text(t("image_transform_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "factor_number") Text(t("factor_hint"), style = MaterialTheme.typography.bodySmall)
+                                if (step.type in listOf("filter_images","images_from_pdf","extract_text_from_image","make_gif","video_from_gif","add_frames_to_gif","frames_from_image","rename_file")) {
+                                    Text(t("media105_hint"),style=MaterialTheme.typography.bodySmall)
+                                    FilledTonalButton(onClick={scope.launch {
+                                        try { val uri=(context.applicationContext as ShortcutsApplication).interactions.ask(Interaction.PickFile(false));if(uri!=null)parameter(step,"source",uri) }
+                                        catch(e:Exception){if(e is CancellationException)throw e;model.report(e)}
+                                    }},enabled=!busy) {Text(t("action_choose_file"))}
+                                }
                                 if (step.type == "set_variable") Text(t("set_variable_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "append_variable") Text(t("append_variable_hint"), style = MaterialTheme.typography.bodySmall)
                                 if (step.type == "resize_image") Text(t("resize_hint"), style = MaterialTheme.typography.bodySmall)

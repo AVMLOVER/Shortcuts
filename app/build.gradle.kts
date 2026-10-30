@@ -19,8 +19,8 @@ android {
         applicationId = "com.germanium.shortcuts"
         minSdk = 26
         targetSdk = 37
-        versionCode = 10004
-        versionName = "1.0.4"
+        versionCode = 10005
+        versionName = "1.0.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testApplicationId = providers.gradleProperty("shortcuts.testApplicationId").orElse("com.germanium.shortcuts.test").get()
     }
@@ -65,6 +65,11 @@ val buildRust = tasks.register<Exec>("buildRust") {
 }
 tasks.named("preBuild").configure { dependsOn(buildRust) }
 dependencies {
+    implementation("com.squareup:gifencoder:0.10.1")
+    implementation("com.github.bumptech.glide:gifdecoder:4.16.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
     implementation(project(":core"))
     implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.core:core-ktx:1.18.0")

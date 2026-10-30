@@ -21,6 +21,7 @@ object ValueDocument {
                 when (current) {
                     Value.Null -> append("<v type=\"null\"/>")
                     is Value.Text -> append("<v type=\"text\">${escape(current.value)}</v>")
+                    is Value.RichText -> append("<v type=\"rich\">${escape(current.html)}</v>")
                     is Value.Number -> append("<v type=\"number\">${current.text()}</v>")
                     is Value.BooleanValue -> append("<v type=\"boolean\">${current.text()}</v>")
                     is Value.ListValue -> { append("<v type=\"list\">"); current.items.forEach(::write); append("</v>") }
@@ -49,7 +50,8 @@ object ValueDocument {
                     require(children.all { it.tagName == "entry" && it.hasAttribute("key") } && children.map { it.getAttribute("key") }.distinct().size == children.size) { throw Problem("err_xml") }
                     Value.Dictionary(children.associate { it.getAttribute("key") to read(it.children().singleOrNull() ?: throw Problem("err_xml"), depth + 1) })
                 }
-                "text", "number", "boolean" -> { require(children.isEmpty()) { throw Problem("err_xml") }; when (element.getAttribute("type")) {
+                "text", "number", "boolean", "rich" -> { require(children.isEmpty()) { throw Problem("err_xml") }; when (element.getAttribute("type")) {
+                    "rich" -> RichTexts.fromHtml(element.textContent)
                     "text" -> Value.Text(element.textContent); "number" -> Value.Number(parseNumber(element.textContent)); else -> Value.BooleanValue(element.textContent.toBooleanStrictOrNull() ?: throw Problem("err_xml"))
                 } }
                 else -> throw Problem("err_xml")

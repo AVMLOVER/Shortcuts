@@ -11,6 +11,15 @@ import java.nio.charset.CodingErrorAction
 import java.nio.ByteBuffer
 
 class WorkspaceFiles(private val root: File) {
+    suspend fun rename(source: String, newName: String): Value = withContext(Dispatchers.IO) { mutex.withLock {
+        FileNames.validate(newName)
+        val original = resolve("",source)
+        require(original.isFile && original != root.canonicalFile) { throw Problem("err_io") }
+        val destination = File(original.parentFile,newName)
+        require(!destination.exists()) { throw Problem("err_file_exists") }
+        Files.move(original.toPath(),destination.toPath())
+        Value.Text(root.canonicalFile.toPath().relativize(destination.toPath()).toString().replace('\\','/'))
+    } }
     private val mutex = Mutex()
     fun streamFile(path: String): File = resolve("",path).also { require(it.isFile) { throw Problem("err_io") } }
     suspend fun importArchive(folder: String, entries: List<ArchiveEntry>): Value = withContext(Dispatchers.IO) { mutex.withLock {

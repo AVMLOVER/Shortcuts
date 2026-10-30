@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
         "write_file", "append_file", "create_file" -> R.drawable.ic_file_write
         "delete_file" -> R.drawable.ic_delete
         else -> R.drawable.ic_file_read
-    }) else Text(definition?.symbol ?: "?", style = if (definition?.type == "format_number") MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleLarge, maxLines = 1, softWrap = false)
+    }) else Text(definition?.symbol ?: "?", style = if ((definition?.symbol?.length ?: 0)>=3) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleLarge, maxLines = 1, softWrap = false)
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable internal fun ToolIcon(icon: Int, label: String, enabled: Boolean = true, danger: Boolean = false, modifier: Modifier = Modifier, click: () -> Unit) {

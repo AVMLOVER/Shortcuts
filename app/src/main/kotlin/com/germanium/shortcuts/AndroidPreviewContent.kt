@@ -19,7 +19,7 @@ import java.nio.charset.CodingErrorAction
 import java.util.UUID
 
 internal data class DocumentPreview(val name:String,val mime:String,val size:Int,val text:String?=null,val page:Int=0,val pages:Int=0)
-internal data class RichPreview(val image:Bitmap?=null,val document:DocumentPreview?=null)
+internal data class RichPreview(val image:Bitmap?=null,val document:DocumentPreview?=null,val animation:ByteArray?=null,val typedContent:Value?=null)
 
 /** One bounded loader shared by app results, dialogs, desktop overlays and notifications. */
 internal class AndroidPreviewContent(private val app:ShortcutsApplication) {
@@ -34,7 +34,14 @@ internal class AndroidPreviewContent(private val app:ShortcutsApplication) {
         val data=try{AndroidImages(app).bytes(source)}catch(e:CancellationException){throw e}catch(_:Exception){return@withContext null}
         ensureActive()
         val bitmap=try{image(data,edge)}catch(e:CancellationException){throw e}catch(_:Exception){null}
-        bitmap?.let{return@withContext RichPreview(image=it)}
+        bitmap?.let{
+            val animation=if(android.os.Build.VERSION.SDK_INT>=28&&data.size>=6&&String(data,0,6,Charsets.US_ASCII) in listOf("GIF87a","GIF89a")) {
+                val parser=com.bumptech.glide.gifdecoder.GifHeaderParser().setData(data)
+                val header=try{parser.parseHeader()}finally{parser.clear()}
+                data.takeIf{header.status==0&&header.numFrames in 2..120&&header.width.toLong()*header.height in 1..4_000_000}
+            }else null
+            return@withContext RichPreview(image=it,animation=animation)
+        }
         val name=label(source)
         val declared=runCatching{content.mime(source)}.getOrDefault("")
         val mime=if(data.size>=5&&data.copyOfRange(0,5).contentEquals("%PDF-".toByteArray())) "application/pdf" else declared.takeUnless{it.isBlank()||it=="application/octet-stream"}
@@ -63,7 +70,11 @@ internal class AndroidPreviewContent(private val app:ShortcutsApplication) {
         if(data.size<=1024*1024) {
             val text=runCatching{Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(data)).toString()}
                 .getOrNull()?.takeIf{value->value.none{it.code<32&&it !in "\t\r\n"}}
-            if(text!=null) document=document.copy(text=text,mime=if(mime=="application/octet-stream")"text/plain" else mime)
+            if(text!=null) {
+                val typed=if(text.startsWith(ValueDocument.HEADER))runCatching{ValueDocument.decode(text)}.getOrNull() else null
+                if(typed is Value.RichText)return@withContext RichPreview(document=document,typedContent=typed)
+                document=document.copy(text=typed?.text() ?: text,mime=if(mime=="application/octet-stream")"text/plain" else mime)
+            }
         }
         RichPreview(document=document)
     }

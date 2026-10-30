@@ -39,8 +39,8 @@ class Version104Test {
         val folder=Files.createTempDirectory("shortcuts104-").toFile()
         try {
             val original=Shortcut(name="Keep",steps=listOf(step("text","value" to "unchanged")))
-            val file=File(folder,"${original.id}.xml");file.writeText(XmlCodec().encode(original).toString(Charsets.UTF_8).replace("appVersion=\"10004\"","appVersion=\"10003\""))
-            assertEquals(original,XmlShortcutRepository(folder).list().single());assertTrue(file.readText().contains("appVersion=\"10004\""))
+            val file=File(folder,"${original.id}.xml");file.writeText(XmlCodec().encode(original).toString(Charsets.UTF_8).replace("appVersion=\"$SHORTCUTS_VERSION\"","appVersion=\"10003\""))
+            assertEquals(original,XmlShortcutRepository(folder).list().single());assertTrue(file.readText().contains("appVersion=\"$SHORTCUTS_VERSION\""))
         } finally { folder.deleteRecursively() }
     }
     @Test fun jsonRetainsExactNumbersBooleansListsAndNull() {

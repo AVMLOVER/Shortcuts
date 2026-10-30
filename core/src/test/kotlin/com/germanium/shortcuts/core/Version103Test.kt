@@ -93,16 +93,16 @@ class Version103Test {
             val codec = XmlCodec(); val old = codec.encode(source).toString(Charsets.UTF_8).replace(Regex(" uuid=\"[^\"]+\"| appVersion=\"[^\"]+\""), "")
             val file = File(directory, "legacy.xml"); file.writeText(old)
             val repository = XmlShortcutRepository(directory); val migrated = repository.list().single()
-            assertEquals(source, migrated); assertTrue(file.readText().contains("appVersion=\"10004\"")); assertFalse(codec.decodeMigrating(file.readBytes()).needsMigration)
+            assertEquals(source, migrated); assertTrue(file.readText().contains("appVersion=\"$SHORTCUTS_VERSION\"")); assertFalse(codec.decodeMigrating(file.readBytes()).needsMigration)
             val bytes = file.readBytes(); repository.list(); assertArrayEquals(bytes, file.readBytes())
         } finally { directory.deleteRecursively() }
     }
     @Test fun futureVersionIsRejectedAndNeverRewritten() = runTest {
         val directory = Files.createTempDirectory("shortcuts-future").toFile()
         try {
-            val source = flow(action("text", "value" to "keep")); val bytes = XmlCodec().encode(source).toString(Charsets.UTF_8).replace("appVersion=\"10004\"", "appVersion=\"10005\"").toByteArray()
+            val source = flow(action("text", "value" to "keep")); val bytes = XmlCodec().encode(source).toString(Charsets.UTF_8).replace("appVersion=\"$SHORTCUTS_VERSION\"", "appVersion=\"${SHORTCUTS_VERSION + 1}\"").toByteArray()
             val file = File(directory, "${source.id}.xml"); file.writeBytes(bytes)
-            try { XmlShortcutRepository(directory).list(); fail("Must reject newer version") } catch(e: FutureShortcutVersion) { assertEquals(10005, e.requiredVersion) }
+            try { XmlShortcutRepository(directory).list(); fail("Must reject newer version") } catch(e: FutureShortcutVersion) { assertEquals(SHORTCUTS_VERSION + 1, e.requiredVersion) }
             assertArrayEquals(bytes, file.readBytes())
             assertThrows(FutureShortcutVersion::class.java) { XmlCodec().decodeImport(bytes) }
         } finally { directory.deleteRecursively() }

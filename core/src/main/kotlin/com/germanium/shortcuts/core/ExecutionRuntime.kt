@@ -182,7 +182,7 @@ internal class Handler(
     override fun validate(parameters: Map<String, String>) = check(parameters)
     override suspend fun execute(parameters: Map<String, String>, context: RunContext) = run(parameters, context)
 }
-fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = ActionRegistry(version104Actions(platform) + contentActions(platform) + extraActions(platform) + libraryActions(platform) + listOf(
+fun builtInActions(platform: PlatformActions = PlatformActions.Unavailable) = ActionRegistry(version105Actions(platform) + version104Actions(platform) + contentActions(platform) + extraActions(platform) + libraryActions(platform) + listOf(
     Handler("text", { require(it.containsKey("value")) { throw Problem("err_invalid_data") } }) { p, c -> c.resolve(p.getValue("value")) },
     Handler("append_text", { require(it.containsKey("value")) { throw Problem("err_invalid_data") } }) { p, c -> Value.Text(c.text(p, "target", "{{input}}") + c.text(p, "value")) },
     Handler("delay", { p ->

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<shortcut version="1" id="hello" createdAt="1793100000000" updatedAt="1793100000000">
+<shortcut version="1" id="hello" createdAt="1793100000000" updatedAt="1793100000000" uuid="4ebbe042-6121-3970-9e4c-5608743e73ad" appVersion="10005">
   <name>我的第一个快捷指令</name>
   <steps>
     <action id="text-1" type="text" enabled="true">

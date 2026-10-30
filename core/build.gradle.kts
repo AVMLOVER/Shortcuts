@@ -5,6 +5,9 @@ java {
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
+    implementation("com.vladsch.flexmark:flexmark:0.64.8")
+    implementation("com.vladsch.flexmark:flexmark-html2md-converter:0.64.8")
+    implementation("org.jsoup:jsoup:1.21.2")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     implementation("com.google.re2j:re2j:1.8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
