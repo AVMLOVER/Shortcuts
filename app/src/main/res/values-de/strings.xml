@@ -254,7 +254,6 @@
     <string name="ui_group_web">Web</string>
     <string name="ui_group_encoding">Kodierung</string>
     <string name="ui_group_device">Gerät</string>
-    <string name="ui_all_categories">Alle Kategorien</string>
     <string name="ui_action_list">Liste</string>
     <string name="ui_list_items">Einträge (einer pro Zeile)</string>
     <string name="ui_action_get_list_item">Element aus Liste abrufen</string>
@@ -806,4 +805,7 @@
     <string name="ui_select_time">Zeit auswählen</string>
     <string name="ui_time_keyboard">Tastatureingabe</string>
     <string name="ui_time_dial">Zifferblatt verwenden</string>
+    <string name="ui_privilege_authorized">Autorisiert</string>
+    <string name="ui_shizuku_authorized_unavailable">Autorisiert · Shizuku-Dienst nicht verbunden</string>
+    <string name="ui_show_less">Weniger</string>
 </resources>

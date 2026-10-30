@@ -8,6 +8,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.germanium.shortcuts.core.RunResult
@@ -28,10 +29,21 @@ import kotlinx.coroutines.launch
         IconButton(onClick = click, enabled = enabled, modifier = modifier) { Icon(painterResource(icon), t(label), tint = if (!enabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) else if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
-@Composable internal fun HomeResult(result: RunResult) {
-    Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainer) {
+@Composable internal fun HomeResult(result: RunResult, dismiss: () -> Unit) {
+    Surface(onClick=dismiss,modifier=Modifier.testTag("home_result"),shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainer) {
+        Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                Text(t("result"),Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
+                ShareValueButton(result.outputValue)
+            }
+            QuickLookContent(LocalContext.current.applicationContext as ShortcutsApplication, result.outputValue,interactive=false)
+        }
+    }
+}
+@Composable internal fun SharedResult(result: RunResult) {
+    Surface(shape=MaterialTheme.shapes.extraLarge,color=MaterialTheme.colorScheme.surfaceContainer) {
         Row(Modifier.fillMaxWidth().padding(20.dp)) {
-            QuickLookContent(LocalContext.current.applicationContext as ShortcutsApplication, result.outputValue, Modifier.weight(1f))
+            QuickLookContent(LocalContext.current.applicationContext as ShortcutsApplication,result.outputValue,Modifier.weight(1f))
             ShareValueButton(result.outputValue)
         }
     }

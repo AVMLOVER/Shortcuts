@@ -11,7 +11,7 @@ import java.util.UUID
 
 data class HomeState(val loading: Boolean = true, val items: List<Shortcut> = emptyList(), val settings: AppSettings = AppSettings(),
     val privilege: PrivilegeStatus = PrivilegeStatus(ExecutionMode.STANDARD, true, "standard_ready"), val runningId: String? = null,
-    val result: RunResult? = null, val error: String? = null, val notice: String? = null, val storageReady: Boolean = false,
+    val result: RunResult? = null, val homeResultDismissed: Boolean = false, val error: String? = null, val notice: String? = null, val storageReady: Boolean = false,
     val authorizing: Boolean = false, val saving: Boolean = false, val currentStepId: String? = null, val editorPaneSide:EditorPaneSide=EditorPaneSide.LEFT, val accessibilityEnabled:Boolean=false,
     val locationEnabled: Boolean = false, val cameraEnabled: Boolean = false, val calendarReadEnabled: Boolean = false, val calendarWriteEnabled: Boolean = false, val albumStatus: String = "not_allowed", val overlayEnabled: Boolean = false, val notificationsEnabled: Boolean = false, val batteryExempt: Boolean = false, val resultShortcutId: String? = null, val shellStdout: String = "", val shellStderr: String = "", val folders: List<ShortcutFolder> = emptyList())
 data class EditorState(val original: Shortcut, val name: String = original.name, val steps: List<ActionStep> = original.steps, val icon: String = original.icon, val color: String = original.color, val layoutVersion: Int = 0, val referenceVersion: Int = 0, val canUndo: Boolean = false, val canRedo: Boolean = false) {
@@ -38,12 +38,13 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
             val relevant = editor.value == null || editor.value?.original?.id == run.shortcutId
             val removed = old.resultShortcutId != null && run.shortcutId == null
             old.copy(runningId = run.runningId, currentStepId = run.currentStep, shellStdout = run.shellStdout, shellStderr = run.shellStderr,
-                result = run.result.takeIf { relevant }, resultShortcutId = run.shortcutId.takeIf { relevant },
+                result = run.result.takeIf { relevant }, homeResultDismissed=run.homeResultDismissed, resultShortcutId = run.shortcutId.takeIf { relevant },
                 error = if (removed) null else run.error ?: if (old.runningId == null && run.runningId != null) null else old.error,
                 notice = if (removed) null else run.notice ?: old.notice)
         } } }
     }
     fun clearError() { app.runs.clear(); mutable.update { it.copy(error = null, notice = null) } }
+    fun dismissHomeResult() = app.runs.dismissHomeResult()
     fun report(error: Throwable) { app.diagnostics.trace("operation_failed", error); mutable.update { it.copy(error = app.describe(error)) } }
     fun notice(key: String) { mutable.update { it.copy(notice = app.tr(key)) } }
     fun reload() {
@@ -239,7 +240,7 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
     fun refreshPrivileges() {
         val status = when (state.value.settings.mode) {
             ExecutionMode.STANDARD -> PrivilegeStatus(ExecutionMode.STANDARD, true, "standard_ready")
-            ExecutionMode.ROOT -> PrivilegeStatus(ExecutionMode.ROOT, false, "root_check")
+            ExecutionMode.ROOT -> app.privileges.rootStatus()
             ExecutionMode.SHIZUKU -> app.privileges.shizukuStatus()
         }; mutable.update { it.copy(privilege = status) }
     }
@@ -248,8 +249,8 @@ class ShortcutsViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             mutable.update { it.copy(authorizing = true) }
             try { when (state.value.settings.mode) {
-                ExecutionMode.ROOT -> { val status = app.privileges.requestRoot(); mutable.update { it.copy(privilege = status) } }
-                ExecutionMode.SHIZUKU -> app.privileges.requestShizukuPermission()
+                ExecutionMode.ROOT -> { val status = app.privileges.requestRoot(); if(state.value.settings.mode==status.mode)mutable.update { it.copy(privilege = status) } else refreshPrivileges() }
+                ExecutionMode.SHIZUKU -> { app.privileges.requestShizukuPermission(); refreshPrivileges() }
                 else -> Unit
             } } catch (e: Exception) { if (e is CancellationException) throw e; report(e) }
             finally { mutable.update { it.copy(authorizing = false) } }

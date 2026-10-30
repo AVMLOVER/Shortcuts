@@ -254,7 +254,6 @@
     <string name="ui_group_web">Web</string>
     <string name="ui_group_encoding">Encoding</string>
     <string name="ui_group_device">Device</string>
-    <string name="ui_all_categories">All categories</string>
     <string name="ui_action_list">List</string>
     <string name="ui_list_items">Items (one per line)</string>
     <string name="ui_action_get_list_item">Get item from list</string>
@@ -806,4 +805,7 @@
     <string name="ui_select_time">Select time</string>
     <string name="ui_time_keyboard">Keyboard input</string>
     <string name="ui_time_dial">Use dial</string>
+    <string name="ui_privilege_authorized">Authorized</string>
+    <string name="ui_shizuku_authorized_unavailable">Authorized · Shizuku service disconnected</string>
+    <string name="ui_show_less">Less</string>
 </resources>

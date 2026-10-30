@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity() {
                     }
                     if (state.runningId != null) item { Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(24.dp)); Text(t("running"), Modifier.weight(1f).padding(12.dp)); TextButton(onClick = model::cancelRun) { Text(t("stop")) } } }
                     if (state.runningId != null && (state.shellStdout.isNotEmpty() || state.shellStderr.isNotEmpty())) item { LiveShell(state.shellStdout, state.shellStderr) }
-                    state.result?.let { result -> item { HomeResult(result) } }
+                    state.result?.takeUnless { state.homeResultDismissed }?.let { result -> item { HomeResult(result,model::dismissHomeResult) } }
                 }
                 1 -> item { AutomationPanel(app, state.items, model::report) }
                 2 -> item { SettingsPanel(app, model, state, transfers, ::launchRequest) { scope.launch { logs = withContext(Dispatchers.IO) { app.diagnostics.read() } } } }

@@ -413,7 +413,7 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
                                 if (step.type == "shell" && state.currentStepId == step.id && state.runningId != null) LiveShell(state.shellStdout, state.shellStderr)
                                 if (InterfacePolicies.hasMore(step.type)) {
                                 var more by rememberSaveable(editor.original.id,step.id) { mutableStateOf(false) }
-                                TextButton(onClick={more=!more},modifier=Modifier.testTag("action_more_${step.id}")) { Text(t("more"));AppIcon(R.drawable.ic_down,modifier=Modifier.graphicsLayer{rotationZ=if(more)180f else 0f}) }
+                                TextButton(onClick={more=!more},modifier=Modifier.testTag("action_more_${step.id}")) { Text(t(if(more)"show_less" else "more"));AppIcon(R.drawable.ic_down,modifier=Modifier.graphicsLayer{rotationZ=if(more)180f else 0f}) }
                                 AnimatedVisibility(more) { Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
                                 if (step.type=="show_result") Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                                     Text(t("allow_cancel"),Modifier.weight(1f),style=MaterialTheme.typography.titleSmall)
@@ -524,11 +524,23 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun ActionLibrary(onDismiss: () -> Unit, onAdd: (ActionDefinition) -> Unit, modifier: Modifier = Modifier,docked:Boolean=false,enabled:Boolean=true) {
     var query by rememberSaveable { mutableStateOf("") }
-    var category by rememberSaveable { mutableStateOf<String?>(null) }
     val context=LocalContext.current
     val configuration=LocalConfiguration.current
     val localized = remember(configuration) { ActionCatalog.all.map { Triple(it, context.tr(it.title), context.tr("group_${it.group}")) } }
+    val filtered = remember(query,localized) { localized.filter { query.isBlank() || it.second.contains(query,true) || it.third.contains(query,true) || it.first.type.contains(query,true) } }
+    val sections = remember(filtered) { ActionLibraryNavigation.sections(filtered.map { it.first.group }) }
+    val grouped = remember(filtered) { filtered.groupBy { it.first.group } }
+    val listState = rememberLazyListState()
+    val categoryState = rememberLazyListState()
+    val category by remember(sections) { derivedStateOf { ActionLibraryNavigation.currentGroup(sections,listState.firstVisibleItemIndex,!listState.canScrollForward&&listState.canScrollBackward) } }
     val dragScope = rememberCoroutineScope()
+    var navigationJob by remember { mutableStateOf<Job?>(null) }
+    LaunchedEffect(query) { navigationJob?.cancel(); listState.scrollToItem(0) }
+    LaunchedEffect(category,sections) {
+        val index=sections.indexOfFirst { it.group==category }
+        val visible=categoryState.layoutInfo.visibleItemsInfo.firstOrNull { it.index==index }
+        if(index>=0&&(visible==null||visible.offset<categoryState.layoutInfo.viewportStartOffset||visible.offset+visible.size>categoryState.layoutInfo.viewportEndOffset)) categoryState.animateScrollToItem(index)
+    }
     BackHandler(enabled=!docked,onBack = onDismiss)
     Surface(modifier.fillMaxWidth().fillMaxHeight(if(docked)1f else 0.74f).imePadding().windowInsetsPadding(shortcutsBottomInsets()).testTag("action_library_panel"), shape = if(docked)RoundedCornerShape(24.dp)else RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 6.dp, shadowElevation = 16.dp) {
         val localView = androidx.compose.ui.platform.LocalView.current
@@ -536,14 +548,17 @@ private fun editorRows(steps: List<ActionStep>, depth: Int = 0, owner: String? =
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(t("add_action"), Modifier.weight(1f), style = if(docked)MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium); if(!docked)IconButton(onClick = onDismiss) { AppIcon(R.drawable.ic_close, description = t("close")) } }
             Text(t("drag_library_hint"), style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(query, { query = it }, label = { Text(t("search_actions")) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).testTag("library_search"))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(category == null, { category = null }, label = { Text(t("all_categories")) })
-                ActionCatalog.all.map { it.group }.distinct().forEach { group -> FilterChip(category == group, { category = group }, label = { Text(t("group_$group")) }) }
+            LazyRow(state=categoryState,horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(sections,key={it.group}) { section -> FilterChip(category == section.group, {
+                    navigationJob?.cancel()
+                    navigationJob=dragScope.launch { listState.animateScrollToItem(section.headerIndex) }
+                }, label = { Text(t("group_${section.group}")) },modifier=Modifier.testTag("library_category_${section.group}")) }
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
-                val filtered = localized.filter { (category == null || it.first.group == category) && (query.isBlank() || it.second.contains(query, true) || it.third.contains(query, true) || it.first.type.contains(query, true)) }
+            LazyColumn(state=listState,modifier=Modifier.weight(1f).testTag("library_actions"),verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
                 if (filtered.isEmpty()) item { Text(t("no_actions")) }
-                filtered.groupBy { it.first.group }.forEach { (groupKey, actions) ->
+                sections.forEach { section ->
+                val groupKey=section.group
+                val actions=grouped.getValue(groupKey)
                 item(key = "group:$groupKey") { Text(t("group_$groupKey"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp)) }
                 items(actions, key = { it.first.type }) { (definition, title, group) -> Card(modifier = Modifier.testTag("library_action_${definition.type}").graphicsLayer{alpha=if(enabled)1f else 0.38f}.combinedClickable(enabled=enabled,onClick = { onAdd(definition) }, onLongClick = { if (enabled&&startLibraryDrag(localView, definition.type, title)) dragScope.launch { delay(100); onDismiss() } }), shape = RoundedCornerShape(22.dp)) {
                     Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { ActionIcon(definition) }; Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(group, style = MaterialTheme.typography.bodySmall) }; AppIcon(R.drawable.ic_add) }

@@ -18,16 +18,16 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** Shared rich result renderer; files retain their references rather than becoming path labels. */
-@Composable internal fun QuickLookContent(app:ShortcutsApplication,source:Value,modifier:Modifier=Modifier) {
+@Composable internal fun QuickLookContent(app:ShortcutsApplication,source:Value,modifier:Modifier=Modifier,interactive:Boolean=true) {
     val entries=remember(source){DisplayContent.items(source)}
     LazyColumn(modifier.fillMaxWidth().heightIn(max=400.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
         if(entries.isEmpty())item{Text(t("no_output"))}
-        itemsIndexed(entries){index,entry->QuickLookItem(app,entry,index)}
+        itemsIndexed(entries){index,entry->QuickLookItem(app,entry,index,interactive)}
     }
 }
 private data class PreviewState(val loaded:Boolean=false,val content:RichPreview?=null)
 
-@Composable private fun QuickLookItem(app:ShortcutsApplication,entry:Value,index:Int) {
+@Composable private fun QuickLookItem(app:ShortcutsApplication,entry:Value,index:Int,interactive:Boolean) {
     val text=entry.text()
     var page by rememberSaveable(text){mutableIntStateOf(0)}
     val loader=remember(app){AndroidPreviewContent(app)}
@@ -49,19 +49,24 @@ private data class PreviewState(val loaded:Boolean=false,val content:RichPreview
                     }
                     Text("${document.mime} · ${document.size} B",style=MaterialTheme.typography.labelSmall)
                     content.image?.let{Image(it.asImageBitmap(),t("document_preview"),Modifier.fillMaxWidth().heightIn(max=300.dp).testTag("document_page_$index"))}
-                    if(document.pages>0)Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                    if(interactive&&document.pages>0)Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
                         IconButton(onClick={page=document.page-1},enabled=document.page>0){AppIcon(R.drawable.ic_back,description=t("previous_page"))}
                         Text(t("document_page",document.page+1,document.pages),Modifier.weight(1f))
                         IconButton(onClick={page=document.page+1},enabled=document.page+1<document.pages){AppIcon(R.drawable.ic_back,modifier=Modifier.rotate(180f),description=t("next_page"))}
                     }
-                    document.text?.let{SelectionContainer{Text(it.ifEmpty{t("no_output")}.take(65536))};if(it.length>65536)Text(t("preview_limited"),style=MaterialTheme.typography.bodySmall)}
+                    document.text?.let{PreviewText(it,interactive)}
                     if(document.pages==0&&document.text==null)Text(t("document_external"),style=MaterialTheme.typography.bodySmall)
-                    FilledTonalButton(onClick={scope.launch{try{loader.open(text,document.mime)}catch(e:CancellationException){throw e}catch(e:Exception){error=app.describe(e)}}}){Text(t("open_document"))}
+                    if(interactive)FilledTonalButton(onClick={scope.launch{try{loader.open(text,document.mime)}catch(e:CancellationException){throw e}catch(e:Exception){error=app.describe(e)}}}){Text(t("open_document"))}
                     error?.let{Text(it,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)}
                 }
             }
         }
         content?.image!=null->Image(content.image.asImageBitmap(),t("image_preview"),Modifier.fillMaxWidth().heightIn(max=320.dp).testTag("quick_look_image_$index"))
-        else->SelectionContainer{Column{Text(text.ifEmpty{t("no_output")}.take(65536));if(text.length>65536)Text(t("preview_limited"),style=MaterialTheme.typography.bodySmall)}}
+        else->PreviewText(text,interactive)
     }
+}
+
+@Composable private fun PreviewText(text:String,interactive:Boolean) {
+    val content:@Composable ()->Unit={Column{Text(text.ifEmpty{t("no_output")}.take(65536));if(text.length>65536)Text(t("preview_limited"),style=MaterialTheme.typography.bodySmall)}}
+    if(interactive)SelectionContainer(content=content) else content()
 }

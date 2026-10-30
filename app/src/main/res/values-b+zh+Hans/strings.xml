@@ -254,7 +254,6 @@
     <string name="ui_group_web">网络与链接</string>
     <string name="ui_group_encoding">编码与摘要</string>
     <string name="ui_group_device">设备</string>
-    <string name="ui_all_categories">全部分类</string>
     <string name="ui_action_list">列表</string>
     <string name="ui_list_items">列表内容（每行一项）</string>
     <string name="ui_action_get_list_item">选取列表内容</string>
@@ -806,4 +805,7 @@
     <string name="ui_select_time">选择时间</string>
     <string name="ui_time_keyboard">键盘输入</string>
     <string name="ui_time_dial">使用表盘</string>
+    <string name="ui_privilege_authorized">已授权</string>
+    <string name="ui_shizuku_authorized_unavailable">已授权 · Shizuku 服务未连接</string>
+    <string name="ui_show_less">更少</string>
 </resources>

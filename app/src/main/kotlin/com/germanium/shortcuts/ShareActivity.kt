@@ -85,7 +85,7 @@ class ShareActivity : ComponentActivity() {
             }
             if (selected != null && run.shortcutId == selected) {
                 if (run.runningId != null) item { Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(24.dp)); Text(t("running"), Modifier.weight(1f).padding(12.dp)); TextButton(onClick = app.runs::cancel) { Text(t("stop")) } } }
-                run.result?.let { result -> item { HomeResult(result) } }
+                run.result?.let { result -> item { SharedResult(result) } }
                 run.error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
             }
             item { TextButton(onClick = dismiss) { Text(t("close")) } }

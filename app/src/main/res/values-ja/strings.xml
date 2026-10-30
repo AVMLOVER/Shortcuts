@@ -254,7 +254,6 @@
     <string name="ui_group_web">Web</string>
     <string name="ui_group_encoding">エンコード</string>
     <string name="ui_group_device">デバイス</string>
-    <string name="ui_all_categories">すべてのカテゴリ</string>
     <string name="ui_action_list">リスト</string>
     <string name="ui_list_items">項目（1 行に 1 つ）</string>
     <string name="ui_action_get_list_item">リストから項目を取得</string>
@@ -806,4 +805,7 @@
     <string name="ui_select_time">時刻を選択</string>
     <string name="ui_time_keyboard">キーボード入力</string>
     <string name="ui_time_dial">文字盤を使用</string>
+    <string name="ui_privilege_authorized">許可済み</string>
+    <string name="ui_shizuku_authorized_unavailable">許可済み · Shizuku サービス未接続</string>
+    <string name="ui_show_less">折りたたむ</string>
 </resources>

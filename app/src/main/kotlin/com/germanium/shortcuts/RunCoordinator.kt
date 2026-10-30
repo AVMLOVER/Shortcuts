@@ -4,7 +4,7 @@ import com.germanium.shortcuts.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-data class RunState(val runningId: String? = null, val shortcutId: String? = runningId, val name: String = "", val currentStep: String? = null, val result: RunResult? = null, val error: String? = null, val notice: String? = null, val shellStdout: String = "", val shellStderr: String = "", val fromWidget: Boolean = false, val previewOutput: String? = null, val previewValue: Value? = null, val widgetPresented:Boolean=false)
+data class RunState(val runningId: String? = null, val shortcutId: String? = runningId, val name: String = "", val currentStep: String? = null, val result: RunResult? = null, val error: String? = null, val notice: String? = null, val shellStdout: String = "", val shellStderr: String = "", val fromWidget: Boolean = false, val previewOutput: String? = null, val previewValue: Value? = null, val widgetPresented:Boolean=false, val homeResultDismissed:Boolean=false)
 class RunCoordinator(private val app: ShortcutsApplication) {
     private val mutable = MutableStateFlow(RunState())
     val state = mutable.asStateFlow()
@@ -24,6 +24,7 @@ class RunCoordinator(private val app: ShortcutsApplication) {
         }; return job
     }
     fun cancel() { job?.cancel() }
+    fun dismissHomeResult() { mutable.update { it.copy(homeResultDismissed = true) } }
     fun shellOutput(stdout: String, stderr: String) { mutable.update { if (it.runningId != null) it.copy(shellStdout = stdout.takeLast(32768), shellStderr = stderr.takeLast(32768)) else it } }
     fun widgetPreview(value: Value) { mutable.update { it.copy(previewOutput = value.text(), previewValue = value) } }
     fun isWidgetExecution()=state.value.fromWidget&&state.value.runningId!=null

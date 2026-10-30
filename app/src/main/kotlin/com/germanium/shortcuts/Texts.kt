@@ -9,6 +9,9 @@ import com.germanium.shortcuts.core.FutureShortcutVersion
 
 object Texts {
     val ids: Map<String, Int> = mapOf(
+        "show_less" to R.string.ui_show_less,
+        "privilege_authorized" to R.string.ui_privilege_authorized,
+        "shizuku_authorized_unavailable" to R.string.ui_shizuku_authorized_unavailable,
         "more" to R.string.ui_more,
         "editor_pane_side" to R.string.ui_editor_pane_side,
         "pane_left" to R.string.ui_pane_left,
@@ -687,7 +690,6 @@ object Texts {
         "group_web" to R.string.ui_group_web,
         "group_encoding" to R.string.ui_group_encoding,
         "group_device" to R.string.ui_group_device,
-        "all_categories" to R.string.ui_all_categories,
         "action_list" to R.string.ui_action_list,
         "list_items" to R.string.ui_list_items,
         "action_get_list_item" to R.string.ui_action_get_list_item,

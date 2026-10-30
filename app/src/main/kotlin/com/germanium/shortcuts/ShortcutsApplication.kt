@@ -34,7 +34,7 @@ class ShortcutsApplication : Application() {
     fun foreground() = resumedActivity?.get()
     val actions by lazy { AndroidActions(this, interactions) { resumedActivity?.get() } }
     val engine by lazy { ShortcutEngine(builtInActions(actions), actions) }
-    val privileges by lazy { PrivilegeController() }
+    val privileges by lazy { PrivilegeController(this) }
     fun updateSharingTargets() { scope.launch { try { SharingTargets.refresh(this@ShortcutsApplication) } catch (e: Exception) { if (e is kotlinx.coroutines.CancellationException) throw e; diagnostics.trace("share_targets_failed", e) } } }
     override fun onCreate() {
         super.onCreate()
